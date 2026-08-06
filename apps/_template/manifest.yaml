@@ -1,0 +1,7 @@
+name: App Template
+slug: my-app-template
+version: 0.1.0
+author: Marketing Engineers
+description: Starter template for BUSY Bar applications.
+tags:
+  - template
