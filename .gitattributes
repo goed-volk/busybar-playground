@@ -1,0 +1,11 @@
+# Set default behavior to automatic text normalization (LF line endings)
+* text=auto eol=lf
+
+# Binary files
+*.png binary
+*.gif binary
+*.jpg binary
+*.ico binary
+
+# Vendored files
+vendor/** linguist-vendored
