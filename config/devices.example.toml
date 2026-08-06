@@ -1,0 +1,8 @@
+default = "office"
+
+[devices.office]
+label = "Office bar"
+wifi_host = "192.168.1.42"      # 2.4 GHz only Wi-Fi
+usb_host  = "10.0.4.20"
+prefer    = "wifi"
+token_env = "BUSYBAR_TOKEN"

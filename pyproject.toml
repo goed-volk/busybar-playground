@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "busybar-kit"
+version = "0.1.0"
+description = "Shared office-context kit and multi-device connection layer for BUSY Bar"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+  { name = "Jan van Unnik", email = "jvu-busybar@jvu.email" }
+]
+dependencies = [
+  "busylib==1.0.0",
+  "python-dotenv>=1.0.0",
+  "tomli>=2.0.0; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "jsonschema>=4.20.0",
+  "pyyaml>=6.0.0",
+  "ruff>=0.4.0",
+  "pre-commit>=3.7.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "hardware: touches a real BUSY Bar device",
+  "emulator: needs the BUSY Bar emulator on 127.0.0.1:8080",
+]
+addopts = '-m "not hardware and not emulator"'
