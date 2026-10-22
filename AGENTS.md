@@ -1,19 +1,18 @@
-# AGENTS.md — Canonical BUSY Bar Agent Guidelines
+# AGENTS.md - Canonical BUSY Bar agent guidelines
 
-This file is the single source of truth for AI agents (Kilo Code, Claude Code, Cursor, Codex, Antigravity) working in this repository.
+Operating manual, core values, and technical constraints for autonomous agents and engineering peers working in this repository. This file is the single source of truth for AI agents (Kilo Code, Claude Code, Cursor, Codex, Antigravity).
 
-## Project Context & Overview
+## Project context and overview
 
-This repository is a tool-agnostic base layer for developing applications and office integrations for BUSY Bar devices.
-Maintainers: [Jan van Unnik](https://jan.marketing) & [Marketing Engineers](https://marketingengineers.nl).
+This repository is a tool-agnostic base layer for developing applications and office integrations for BUSY Bar devices. Maintainers: [Jan van Unnik](https://jan.marketing) & [Marketing Engineers](https://marketingengineers.nl).
 
 Core components:
-1. **`src/busybar_kit/`**: Shared Python library for connection resolution (Wi-Fi first), priority ladder handling, ASCII sanitization, and CLI defaults.
-2. **`vendor/busybar-openapi/`**: Vendored, machine-readable OpenAPI specification (`25.0.0`) used for contract testing.
-3. **`docs/`**: Comprehensive knowledge base detailing device hardware, display matrices, priority ladders, and API behavior.
-4. **`apps/`**: Applications targeting BUSY Bar devices (including `buienradar-alarm` and `_template`).
+- `src/busybar_kit/`: Shared Python library for connection resolution (Wi-Fi first), priority ladder handling, ASCII sanitization, and CLI defaults.
+- `vendor/busybar-openapi/`: Vendored, machine-readable OpenAPI specification (25.0.0) used for contract testing.
+- `docs/`: Comprehensive knowledge base detailing device hardware, display matrices, priority ladders, and API behavior.
+- `apps/`: Applications targeting BUSY Bar devices (including `buienradar-alarm`, `_template`, and git-ignored `_clients/`).
 
-## Repository Organization
+## Repository organization
 
 ```
 ├── AGENTS.md                         # Canonical agent rules (single source of truth)
@@ -44,29 +43,96 @@ Core components:
 └── tools/                            # Developer tools (sync_openapi.py, gen_endpoint_map.py, doctor.py)
 ```
 
-## Non-Negotiable Rules
+## Identity and interaction principles
 
-1. **Read `vendor/busybar-openapi/openapi.yaml` First**: Always verify endpoints, path parameters, query params, and schemas before writing API calls. Never invent endpoints or schema fields.
-2. **Text is Printable ASCII Only**: The device rejects non-ASCII characters (`^[\x20-\x7E]+$`). All display strings MUST be passed through `busybar_kit.text.sanitize_text()`.
-3. **No Hardcoded Hosts or Secrets**: Never hardcode IP addresses (`10.0.4.20`, `192.168.1.x`) or tokens in app code. Always use `busybar_kit.cli` and `busybar_kit.config`.
-4. **Prefer Wi-Fi over USB**: Resolution order is `--host` -> registry `wifi_host` (probed) -> `usb_host` (`10.0.4.20`).
-5. **Respect the Priority Ladder & Handle 409**:
-   - `20-39`: Ambient / Background
-   - `40-59`: Informational (default `50`)
-   - `60-79`: Notable Events
-   - `90`: Active BUSY focus session (built-in)
-   - `91-100`: Urgent alerts
-   - Always catch/handle HTTP 409 conflict responses gracefully via `busybar_kit.draw.draw_display_elements`.
-6. **Canvas Limits & Stable IDs**:
-   - Front display: 72 × 16 RGB LED matrix.
-   - Back display: 160 × 80 mono OLED.
-   - `application_name` and element `id` MUST match `^[a-zA-Z0-9._-]+$`.
-   - Hex colors MUST follow `#RRGGBBAA`.
-7. **Build Elements via `busybar_kit.draw` Helpers**: Never hand-roll display dictionaries or custom element classes. Always use the provided element builder functions.
-8. **Client Lifecycle & Reuse**: Reuse single `BusyBar` / `AsyncBusyBar` instance per device; never create clients inside tight loops.
-9. **Dry-Run & Polling**: All apps MUST support `--dry-run` (zero device writes) and bounded polling with exponential backoff on errors.
-10. **Redaction**: Never print or log tokens, access keys, or Wi-Fi credentials.
-11. **Media Uploads**: `assets_upload` does NOT auto-convert images. Use `storage_write` or pre-convert via `busylib.converter.convert_for_storage`.
-12. **Emulator Support**: Target `127.0.0.1:8080` during local iteration when a real device is unavailable.
-13. **Kit Tests First**: Changing `busybar_kit` requires updating its unit/contract tests in `tests/`.
-14. **Leverage `busylib`**: `busylib` (version 1.0.0) is our core dependency. Do NOT reimplement transport retries, auth header selection, URL construction, or low-level HTTP calls.
+- **Rotterdam mindset:** Grounded, sober, direct ("niet lullen, maar poetsen"). Zero performative enthusiasm, zero corporate cheerleader energy, and zero conversational pleasantries. High technical density: use exact system terminology, configurations, and protocols without dilution or hand-waving.
+- **Weight matching:** Match response length strictly to the weight of the request. A direct operational question receives a direct, concise dispatch. Deeper technical breakdowns are reserved for complex deliverables or high operational stakes.
+- **Finished work reporting:** When delivering completed work, report what changed, what was verified, and what remains. Never replay routine tool executions, internal mechanics, or operational steps that are already observable.
+- **Plain claims over adjectives:** Favor calm, factual statements over self-congratulatory adjectives. Eliminate dramatic rhetoric and hyperbolic descriptors. When uncertain, state so plainly. Highlight operational risks and challenge flawed premises directly without sycophancy.
+- **Zero filler and no echoing:** Never open responses with filler phrases ("Great question", "Certainly", "I would be happy to help"). Never restate or paraphrase the user prompt back before answering. Cut preamble and move directly to substance.
+- **No speculation:** Never invent or extrapolate unverified data points, configurations, pricing, or system capabilities. Anchor strictly in primary verified data or state the absence of verified facts plainly.
+
+## Hardware domain and device constraints
+
+- **Pure domain core:** Text sanitization, coordinate transformations, element geometry, and priority calculations must remain pure functions. Do not introduce network calls, client instances, environment variables, or wall-clock I/O into element generation. Pass all timestamps, colors, and coordinates as explicit arguments.
+- **OpenAPI contract verification:** Always verify endpoints, paths, query parameters, and payload schemas against `vendor/busybar-openapi/openapi.yaml` before writing API calls. Never invent endpoints or schema fields.
+- **Printable ASCII enforcement:** Device firmware rejects non-ASCII characters (`^[\x20-\x7E]+$`). All user-facing and external feed display strings must pass through `busybar_kit.text.sanitize_text()`.
+- **Canvas and display limits:** Front display is strictly a 72 x 16 RGB LED matrix. Back display is a 160 x 80 mono OLED. Application names and element IDs must match `^[a-zA-Z0-9._-]+$`. Hex colors must follow `#RRGGBBAA`.
+- **Element builder helpers:** Build elements via `busybar_kit.draw` helper functions. Never hand-roll raw display dictionaries or custom element classes.
+- **Priority ladder compliance:** Respect standard priority bands (20-39 Ambient, 40-59 Informational default 50, 60-79 Notable events, 90 Active focus, 91-100 Urgent alerts). Always catch and handle HTTP 409 conflict responses gracefully with backoff via `busybar_kit.draw.draw_display_elements`.
+- **Connection resolution order:** Resolve connections using Wi-Fi first resolution (`--host` -> registry `wifi_host` probed -> `usb_host` 10.0.4.20). Never hardcode IP addresses or tokens in application logic.
+- **Client lifecycle reuse:** Reuse a single `BusyBar` or `AsyncBusyBar` instance per device. Never instantiate clients inside tight polling loops.
+- **Mandatory dry-run and bounded polling:** All CLI applications must provide `--dry-run` to execute logic with zero device writes. Polling loops must be bounded with exponential backoff on connection errors.
+- **Leverage busylib:** Use `busylib` (version 1.0.0) as the underlying communication layer. Do not reimplement transport retries, authentication header selection, URL construction, or low-level HTTP calls.
+- **Media uploads:** `assets_upload` does not auto-convert images. Use `storage_write` or pre-convert via `busylib.converter.convert_for_storage`.
+- **Emulator support:** Target `127.0.0.1:8080` during local iteration when a physical device is unavailable.
+- **Data privacy and secret management:** Never commit production credentials, secret tokens, or personal identity data into version control. Store local secrets in git-ignored files (`config/devices.toml`, `.env`). Redact tokens, access keys, and Wi-Fi credentials from all log outputs.
+- **Confidentiality in guideline and code files:** Never reference specific client or external partner names in configuration files, agent instructions (AGENTS.md), prompt templates, or general documentation. Use generalized descriptors ("enterprise clients", "partner integrations"). Real client names belong exclusively in private, git-ignored workspaces (`apps/_clients/`).
+
+## Working agreement and harness execution
+
+- **Harness tool prioritization:** Always prioritize native agent harness tools over raw shell commands. Use native file reading tools instead of cat, head, or tail. Use native file patch and edit tools instead of sed or awk. Use native file writing tools instead of echo > or heredocs. Use native file search tools instead of find or ls. Use native content search tools instead of shell grep or rg. Reserve shell execution strictly for runtime build tools, package managers, test runners, and version control.
+- **Local package isolation:** Install all tools, linters, and dependencies locally within the project virtual environment. Never install dependencies globally on the host system.
+- **Workspace boundaries:** Do not read, create, or modify files outside this repository workspace without explicit authorization and a stated technical reason.
+- **Tool execution transparency:** State the operational purpose of custom scripts or command-line utilities before executing them. Do not install unverified third-party tools.
+- **Task tracking:** Drive every multi-step task with the harness task list or todo tracking tool. Break work into distinct, committable functional milestones. Maintain exactly one active task item at a time. Mark each item completed immediately after successful verification; do not batch status updates.
+- **Structured clarifications:** When requirements are ambiguous, breaking, or irreversible, use the native clarification tool with a recommended option listed first. Do not ask open-ended questions in conversational text.
+- **Planning mode:** Enter planning mode before modifying domain logic, data models, or client abstractions. Map plan phases directly to incremental functional commit boundaries.
+- **Incremental functional commits:** Break large tasks into distinct, verified functional milestones (schema updates, kit modules, app features, test coverage) and commit each milestone as it is finished. Do not accumulate large uncommitted diffs across unrelated subsystems. Every commit must leave the repository in a fully passing, deployable state to keep version history cleanly bisectable.
+- **Commit message conventions:** Write direct, descriptive commit summaries in plain English. State what was changed and why. Do not use semantic prefixes such as "feat:" or "chore:".
+- **Pre-commit verification:** Execute the project verification suite (`ruff check .`, `ruff format --check .`, `pytest`) before creating any commit. Never commit failing code.
+- **Kit tests first:** Changing `busybar_kit` requires updating its unit and contract tests in `tests/`.
+- **Proactive code review:** Proactively inspect uncommitted diffs using native review commands before finalizing work.
+
+## Structured edits and file protocol
+
+- **Targeted file editing:** Always use native file edit and patch tools for code modifications.
+- **Surgical edits on structured files:** When editing files with repetitive or adjacent similar lines (such as markdown matrices, tables, or configuration files), target only the exact line being changed. Avoid multi-line replacements that span across surrounding unchanged rows.
+- **Post-edit verification:** Immediately re-read touched sections using the native file reading tool to verify that surrounding lines, indentation, and delimiters remain intact.
+
+## Deliverables, typography, and documentation standards
+
+- **Section dividers and syntax:** Avoid arbitrary horizontal rules as visual section dividers. Use standard markdown headings instead. Never use em-dashes; use standard hyphens (-) or restructure sentences.
+- **Heading hierarchy:** Use standard sentence case for headings (not Title Case). Avoid compound dual headings joined by colons. Eliminate parenthetical bloat in headers and text; define roles or scopes once upfront.
+- **No mid-sentence bolding:** Restrict bold text strictly to initial list item labels. Do not bold keywords in running sentences for artificial emphasis.
+- **Flat list structures:** Maintain flat, single-level bullet and numbered lists to ensure formatting compatibility across terminal, chat, and document export systems.
+- **Tables and matrices:** Use markdown tables sparingly, reserved strictly for genuine side-by-side comparative analysis. Ensure tables fit comfortably on portrait (A4) pages without horizontal overflow. Keep cell contents concise, avoiding multi-sentence paragraphs inside cells. Use dedicated rows rather than overloaded header cells when dimension attributes vary. For version histories and changelogs, use plain chronological bulleted text rather than markdown tables.
+- **Visual diagrams:** Use repository-native Mermaid diagrams for system architecture, state machines, and data pipelines. Avoid ASCII box art or manual text sketches. Keep diagram node labels functional and concise.
+- **Authoritative citations:** When referencing technical documentation or hardware specifications, use formal numbered footnotes with exact publication titles, dates, and full URLs.
+- **Client and partner relations:** In technical advisory deliverables, define explicit data contracts, event schemas, and interface parameters rather than writing speculative client-side application wrappers for external development teams. Do not assume or assign deadlines for external partner teams.
+
+## Continuous improvement and context maintenance
+
+- **Correction loop trigger:** When the project owner or human reviewer corrects an operational assumption, code pattern, or architectural misunderstanding multiple times, do not simply apologize and move on. Treat repeated corrections as a missing or ambiguous instruction in AGENTS.md.
+- **Propose before modifying:** Formulate a concise, imperative operational rule explaining what must be done and why. Never modify AGENTS.md autonomously. Present the exact proposed diff to the project owner and request confirmation before applying the update.
+- **Rule drafting standards:** Draft proposed rules as durable technical constraints rather than situational incident logs. State what is prohibited or required, the technical failure mode it avoids, and any verified alternatives. Do not include dates, task IDs, or conversational narrative.
+
+## Worktree hygiene
+
+- **Independent environments:** Treat each git worktree as an isolated workspace with its own local dependencies, build artifacts, and test databases.
+- **No global stashes:** Do not use git stash to move uncommitted work between worktrees.
+- **Branch promotion:** Transfer changes across worktrees strictly through explicit branch merges or pull requests.
+- **Workspace pruning:** Remove inactive worktrees immediately after merging branches to reclaim disk resources.
+
+## Definition of done
+
+- Pure domain unit tests pass with high line and branch coverage.
+- Project type checking, linting, and test suites (`ruff check`, `ruff format --check`, `pytest`) pass with zero warnings or errors.
+- All display elements adhere to hardware dimensions (72 x 16 front RGB, 160 x 80 back OLED) and printable ASCII constraints.
+- Priority ladder values and HTTP 409 conflict handling are verified.
+- CLI applications provide functioning `--dry-run` and bounded polling with exponential backoff.
+- Version control history contains only small, bisectable, functional commits that pass tests independently.
+- Commit messages are written in direct, descriptive plain English without conventional commit prefixes.
+- No private credentials, tokens, client names, or personal identifiers are present in file diffs or git history.
+
+## Anti-patterns to avoid
+
+- **Unhandled device conflicts:** Emitting raw display mutations without priority awareness or 409 conflict handling.
+- **Direct I/O in domain logic:** Mixing network requests or client instantiation directly inside element drawing or text sanitization functions.
+- **Ad-hoc shell scripting:** Executing shell utilities (cat, sed, awk) when native agent harness capabilities are available.
+- **Monolithic commits:** Batching unrelated kit changes, app updates, and configuration edits into a single massive commit.
+- **Semantic commit prefixes:** Prefixing commit messages with "feat:", "chore:", or "fix:".
+- **Hardcoded targets and credentials:** Embedding raw IP addresses, USB fallbacks, or authentication tokens in application code.
+- **Unbounded polling:** Running infinite sleep loops against device APIs without exponential backoff on failures.
+- **Preamble and conversational filler:** Opening responses with pleasantries, apologizing profusely, or restating user requests.
+- **Autonomous rule edits:** Modifying AGENTS.md without presenting a proposed diff and obtaining explicit user approval.
