@@ -9,12 +9,11 @@ from busylib.exceptions import BusyBarAPIError
 from busylib.types import (
     AnimationElement,
     CountdownElement,
-    DisplayElementBase,
     DisplayElements,
     ImageElement,
+    RectangleElement,
     TextElement,
 )
-from pydantic import Field, ValidationError, field_validator
 
 from busybar_kit.text import sanitize_text
 
@@ -33,23 +32,6 @@ PRIORITY_URGENT_MAX = 100
 
 APP_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
 _element_id_counter = 0
-
-
-class RectangleElement(DisplayElementBase):
-    type: Literal["rectangle"] = "rectangle"
-    x: int = Field(default=0, ge=-4096, le=4095)
-    y: int = Field(default=0, ge=-4096, le=4095)
-    width: int
-    height: int
-    color: str = Field(default="#FFFFFFFF", pattern=r"^#[a-fA-F0-9]{8}$")
-    fill: Literal["none", "solid", "gradient_h", "gradient_v"] = "solid"
-
-    @field_validator("fill", mode="before")
-    @classmethod
-    def convert_bool_fill(cls, v: Any) -> Any:
-        if isinstance(v, bool):
-            return "solid" if v else "none"
-        return v
 
 
 def validate_app_name_and_id(name_or_id: str, field_name: str = "application_name") -> str:
@@ -163,9 +145,23 @@ def build_rectangle_element(
     y: int = 0,
     color: str = "#FFFFFFFF",
     fill: Literal["none", "solid", "gradient_h", "gradient_v"] | bool = "solid",
+    fill_colors: list[str] | None = None,
+    border_width: int = 0,
+    border_color: str | None = None,
+    radius: int = 0,
 ) -> RectangleElement:
     element_id = id or _next_element_id("rect")
     validate_app_name_and_id(element_id, field_name="id")
+
+    if isinstance(fill, bool):
+        fill_mode: Literal["none", "solid", "gradient_h", "gradient_v"] = (
+            "solid" if fill else "none"
+        )
+    else:
+        fill_mode = fill
+
+    resolved_fill_colors = fill_colors if fill_colors is not None else [color]
+    resolved_border_color = border_color if border_color is not None else color
 
     return RectangleElement(
         id=element_id,
@@ -173,8 +169,11 @@ def build_rectangle_element(
         height=height,
         x=x,
         y=y,
-        color=color,
-        fill=fill,
+        radius=radius,
+        fill=fill_mode,
+        fill_colors=resolved_fill_colors,
+        border_width=border_width,
+        border_color=resolved_border_color,
     )
 
 
@@ -193,19 +192,6 @@ def draw_display_elements(
 ) -> bool:
     validate_app_name_and_id(application_name, field_name="application_name")
 
-    raw_elements = [
-        el.model_dump(mode="json", exclude_none=True) if hasattr(el, "model_dump") else el
-        for el in elements
-    ]
-
-    payload_dict = {
-        "application_name": application_name,
-        "priority": priority,
-        "elements": raw_elements,
-    }
-    if led_notification_color:
-        payload_dict["led_notification_color"] = led_notification_color
-
     if dry_run:
         logger.info(
             "[DRY-RUN] Would draw %d element(s) for app '%s' at priority %d",
@@ -221,20 +207,20 @@ def draw_display_elements(
     backoff = initial_backoff
     for attempt in range(max_409_retries + 1):
         try:
-            try:
-                display_elements_model = DisplayElements(
-                    application_name=application_name,
-                    priority=priority,
-                    elements=elements,
-                )
-                client.display_draw(
-                    display_elements_model,
-                    timeout=timeout,
-                    display_until=display_until,
-                    led_notification_color=led_notification_color,
-                )
-            except ValidationError:
-                client._request("POST", "/api/display/draw", json_payload=payload_dict)
+            display_elements_model = DisplayElements(
+                application_name=application_name,
+                priority=priority,
+                elements=elements,
+                led_notification_color=led_notification_color,
+            )
+
+            request_kwargs: dict[str, Any] = {}
+            if timeout is not None:
+                request_kwargs["timeout"] = timeout
+            if display_until is not None:
+                request_kwargs["display_until"] = display_until
+
+            client.display_draw(display_elements_model, **request_kwargs)
 
             logger.debug(
                 "Successfully drew %d element(s) for app '%s' at priority %d",

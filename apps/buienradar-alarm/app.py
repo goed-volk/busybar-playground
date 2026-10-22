@@ -208,9 +208,9 @@ def main():
                 if not last_clear_sent:
                     if not args.dry_run and client:
                         try:
-                            client.clear_display(application_name=APP_NAME)
+                            client.display_clear(application_name=APP_NAME)
                         except Exception as e:
-                            print(f"Clear display error: {e}")
+                            print(f"Failed to clear display: {e}")
                     print("Dry weather: display cleared")
                     last_clear_sent = True
                     first_alert = True
@@ -241,7 +241,7 @@ def main():
         print("\nStopping...")
         if not args.dry_run and client:
             try:
-                client.clear_display(application_name=APP_NAME)
+                client.display_clear(application_name=APP_NAME)
             except Exception:
                 pass
 

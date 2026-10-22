@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-import httpx
+import httpx2
 from busylib import AsyncBusyBar, BusyBar
 from busylib.versioning import API_VERSION
 
@@ -17,8 +17,8 @@ _async_clients: dict[str, AsyncBusyBar] = {}
 def get_busybar_client(
     config: DeviceConfig | None = None,
     explicit_host: str | None = None,
-    transport: httpx.BaseTransport | None = None,
-    timeout: float | httpx.Timeout | None = None,
+    transport: httpx2.BaseTransport | None = None,
+    timeout: float | httpx2.Timeout | None = None,
     max_retries: int = 2,
     backoff: float = 0.25,
     compatibility_mode: str = "warn",
@@ -38,6 +38,7 @@ def get_busybar_client(
         "token": resolved.token,
         "max_retries": max_retries,
         "backoff": backoff,
+        "compatibility_mode": compatibility_mode,
     }
     if transport is not None:
         kwargs["transport"] = transport
@@ -73,8 +74,8 @@ def get_busybar_client(
 def get_async_busybar_client(
     config: DeviceConfig | None = None,
     explicit_host: str | None = None,
-    transport: httpx.AsyncBaseTransport | None = None,
-    timeout: float | httpx.Timeout | None = None,
+    transport: httpx2.AsyncBaseTransport | None = None,
+    timeout: float | httpx2.Timeout | None = None,
     max_retries: int = 2,
     backoff: float = 0.25,
     compatibility_mode: str = "warn",
@@ -94,6 +95,7 @@ def get_async_busybar_client(
         "token": resolved.token,
         "max_retries": max_retries,
         "backoff": backoff,
+        "compatibility_mode": compatibility_mode,
     }
     if transport is not None:
         kwargs["transport"] = transport

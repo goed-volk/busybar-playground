@@ -55,10 +55,7 @@ def load_config(
             devices_data = tomllib.load(f)
 
     target_device = (
-        device_name
-        or os.environ.get("BUSYBAR_DEVICE")
-        or devices_data.get("default")
-        or "office"
+        device_name or os.environ.get("BUSYBAR_DEVICE") or devices_data.get("default") or "office"
     )
 
     devices = devices_data.get("devices", {})

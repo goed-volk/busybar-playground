@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 import yaml
 
@@ -16,26 +16,26 @@ def spec() -> dict[str, Any]:
 
 
 @pytest.fixture
-def mock_bar_transport() -> tuple[httpx.MockTransport, list[httpx.Request]]:
-    requests: list[httpx.Request] = []
+def mock_bar_transport() -> tuple[httpx2.MockTransport, list[httpx2.Request]]:
+    requests: list[httpx2.Request] = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
 
         if "/api/display/draw" in request.url.path or "/busybar/display/draw" in request.url.path:
             if request.headers.get("X-Trigger-409"):
-                return httpx.Response(
+                return httpx2.Response(
                     409,
                     json={"error": "Requested priority level is below active app", "code": 409},
                 )
-            return httpx.Response(200, json={"result": "OK"})
+            return httpx2.Response(200, json={"result": "OK"})
 
         if "/api/version" in request.url.path or "/busybar/version" in request.url.path:
-            return httpx.Response(200, json={"version": "25.0.0", "api_semver": "25.0.0"})
+            return httpx2.Response(200, json={"version": "1.2.3", "api_semver": "27.5.0"})
 
-        return httpx.Response(200, json={"result": "OK"})
+        return httpx2.Response(200, json={"result": "OK"})
 
-    transport = httpx.MockTransport(handler)
+    transport = httpx2.MockTransport(handler)
     return transport, requests
 
 

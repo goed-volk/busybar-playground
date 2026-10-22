@@ -47,7 +47,7 @@ def main():
         print("\nStopping...")
         if not args.dry_run and client:
             try:
-                client.clear_display(application_name=APP_NAME)
+                client.display_clear(application_name=APP_NAME)
             except Exception:
                 pass
 

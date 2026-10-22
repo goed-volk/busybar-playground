@@ -1,7 +1,7 @@
 import logging
 from typing import NamedTuple
 
-import httpx
+import httpx2
 
 from busybar_kit.config import DeviceConfig, load_config
 
@@ -22,7 +22,7 @@ def is_device_reachable(addr: str, timeout: float = 1.5) -> bool:
     formatted_addr = addr if addr.startswith(("http://", "https://")) else f"http://{addr}"
     url = f"{formatted_addr.rstrip('/')}/api/version"
     try:
-        resp = httpx.get(url, timeout=timeout)
+        resp = httpx2.get(url, timeout=timeout)
         return resp.status_code in (200, 401, 403)
     except Exception:
         return False
