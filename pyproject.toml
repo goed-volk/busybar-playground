@@ -13,18 +13,18 @@ authors = [
   { name = "Jan van Unnik", email = "jvu-busybar@jvu.email" }
 ]
 dependencies = [
-  "busylib==1.0.0",
-  "python-dotenv>=1.0.0",
+  "busylib==2.6.1",
+  "python-dotenv>=1.2.0",
   "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.0.0",
-  "jsonschema>=4.20.0",
-  "pyyaml>=6.0.0",
-  "ruff>=0.4.0",
-  "pre-commit>=3.7.0",
+  "pytest>=9.0.0",
+  "jsonschema>=4.26.0",
+  "pyyaml>=6.0.3",
+  "ruff>=0.17.0",
+  "pre-commit>=4.0.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -33,6 +33,7 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+extend-exclude = ["vendor"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
