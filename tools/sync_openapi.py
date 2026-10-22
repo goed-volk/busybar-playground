@@ -34,7 +34,11 @@ def main() -> None:
         print("Downloaded initial OpenAPI snapshot.")
         sys.exit(0)
 
-    current_data = VENDOR_PATH.write_bytes(upstream_data) if update else VENDOR_PATH.read_bytes()
+    if update:
+        VENDOR_PATH.write_bytes(upstream_data)
+        current_data = upstream_data
+    else:
+        current_data = VENDOR_PATH.read_bytes()
 
     upstream_hash = hashlib.sha256(upstream_data).hexdigest()
     current_hash = hashlib.sha256(current_data).hexdigest()
@@ -50,7 +54,6 @@ def main() -> None:
         sys.exit(0)
 
     if update:
-        VENDOR_PATH.write_bytes(upstream_data)
         print(f"Updated vendored OpenAPI spec (SHA256: {upstream_hash}).")
 
 

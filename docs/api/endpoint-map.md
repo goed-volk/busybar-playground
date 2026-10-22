@@ -8,6 +8,10 @@ Note: Spec declares `/busybar/...` path prefix (`servers: [/]`). On-device HTTP 
 |---|---|---|---|
 | `/busybar/access` | **GET** | `getHttpAccess` | Get HTTP API access over Wi-Fi configuration |
 | `/busybar/access` | **POST** | `setHttpAccess` | Set HTTP API access over Wi-Fi configuration |
+| `/busybar/access/tokens` | **DELETE** | `deleteAllAccessTokens` | Revoke all access tokens |
+| `/busybar/access/tokens` | **GET** | `getAccessTokens` | List all access tokens |
+| `/busybar/access/tokens` | **POST** | `createAccessToken` | Create a new access token |
+| `/busybar/access/tokens/{short_id}` | **DELETE** | `revokeAccessToken` | Revoke an access token |
 | `/busybar/account/backend` | **GET** | `getAccountBackend` | Get MQTT configuration |
 | `/busybar/account/info` | **GET** | `getAccountInfo` | Get linked account info |
 | `/busybar/account/status` | **GET** | `getAccountStatus` | Get MQTT status info |
@@ -44,7 +48,6 @@ Note: Spec declares `/busybar/...` path prefix (`servers: [/]`). On-device HTTP 
 | `/busybar/status/firmware` | **GET** | `getStatusFirmware` | Get firmware info |
 | `/busybar/status/power` | **GET** | `getStatusPower` | Get power status |
 | `/busybar/status/system` | **GET** | `getStatusSystem` | Get system status |
-| `/busybar/status/ws` | **GET** | `connectWebSocket` | Device status streaming WebSocket endpoint |
 | `/busybar/storage/list` | **GET** | `listStorageFiles` | List files on internal storage |
 | `/busybar/storage/mkdir` | **POST** | `createStorageDir` | Create a directory on internal storage |
 | `/busybar/storage/read` | **GET** | `readStorageFile` | Download file from internal storage |
@@ -58,7 +61,6 @@ Note: Spec declares `/busybar/...` path prefix (`servers: [/]`). On-device HTTP 
 | `/busybar/time/timezone` | **POST** | `setTimeTimezone` | Set timezone |
 | `/busybar/time/tzlist` | **GET** | `getTimeTzlist` | Get list of supported time zones |
 | `/busybar/transport` | **GET** | `getTransport` | Get device network connection info |
-| `/busybar/update` | **POST** | `updateFirmware` | Update firmware |
 | `/busybar/update/abort_download` | **POST** | `abortFirmwareDownload` | Abort ongoing firmware download |
 | `/busybar/update/autoupdate` | **GET** | `getAutoupdateSettings` | Get autoupdate settings |
 | `/busybar/update/autoupdate` | **POST** | `setAutoupdateSettings` | Set autoupdate settings |

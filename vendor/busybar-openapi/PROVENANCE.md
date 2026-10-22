@@ -1,10 +1,10 @@
 # OpenAPI Specification Provenance
 
 - **Source URL**: `https://api.busy.app/busybar/openapi.yaml`
-- **Fetched Date**: 2026-08-06
-- **SHA256 Checksum**: `413e7b2feb6363a756cd5cb02267d8867c860daa2802b9706285b799c8f99b46`
+- **Fetched Date**: 2026-10-22
+- **SHA256 Checksum**: `1a1f77e9f3debcba81e377a82b63a2caf5c83bb9e78b169986ed0b7375881da9`
 - **OpenAPI Version**: `3.1.0`
-- **Info Version**: `25.0.0`
+- **Info Version**: `27.5.0`
 - **Owner**: Flipper Devices Inc.
 
 ## Rationale

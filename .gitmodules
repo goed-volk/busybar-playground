@@ -1,0 +1,11 @@
+[submodule "vendor/busylib-py"]
+	path = vendor/busylib-py
+	url = https://github.com/busy-app/busylib-py.git
+	branch = main
+	recurse = false
+[submodule "vendor/busylib-ts"]
+	path = vendor/busylib-ts
+	url = https://github.com/busy-app/busylib-ts.git
+	branch = dev
+	recurse = false
+
