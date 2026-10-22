@@ -16,9 +16,9 @@ BUSY Bar supports three transport modes for communication:
    - **Wi-Fi Hardware Constraint**: Device hardware supports **2.4 GHz Wi-Fi only** (Wi-Fi 6 / 802.11 b/g/n/ax on 2.4 GHz). It cannot connect to 5 GHz SSIDs.
 
 3. **Cloud API (Remote)**
-   - **Base URL (Docs)**: `https://api.busy.app/busybar`
-   - **Base URL (busylib default)**: `https://proxy.busy.app` *(Note: Unverified discrepancy in upstream library defaults; prefer local Wi-Fi/USB transport)*
+   - **Base URL (Default)**: `https://api.busy.app/busybar` (configurable via `BUSYLIB_URL` or `BUSYLIB_CLOUD_URL`).
    - **Authentication**: Header `Authorization: Bearer <cloud_bearer_token>`.
+   - **Client Resolution**: When configured with a cloud token or URL, `busylib` automatically routes requests to cloud mode.
 
 ---
 

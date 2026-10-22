@@ -8,7 +8,9 @@ This repository is a tool-agnostic base layer for developing applications and of
 
 Core components:
 - `src/busybar_kit/`: Shared Python library for connection resolution (Wi-Fi first), priority ladder handling, ASCII sanitization, and CLI defaults.
-- `vendor/busybar-openapi/`: Vendored, machine-readable OpenAPI specification (25.0.0) used for contract testing.
+- `vendor/busybar-openapi/`: Vendored, machine-readable OpenAPI specification (27.5.0) used for contract testing.
+- `vendor/busylib-py/`: Reference git submodule of official upstream Python SDK (busylib-py).
+- `vendor/busylib-ts/`: Reference git submodule of official upstream TypeScript SDK (busylib-ts, non-recursive).
 - `docs/`: Comprehensive knowledge base detailing device hardware, display matrices, priority ladders, and API behavior.
 - `apps/`: Applications targeting BUSY Bar devices (including `buienradar-alarm`, `_template`, and git-ignored `_clients/`).
 
@@ -40,6 +42,8 @@ Core components:
 │   └── _clients/                     # Client project work (git-ignored)
 ├── docs/                             # Knowledge base & API documentation
 ├── vendor/busybar-openapi/           # Pinned openapi.yaml & provenance metadata
+├── vendor/busylib-py/                # Upstream Python SDK git submodule (reference)
+├── vendor/busylib-ts/                # Upstream TypeScript SDK git submodule (reference)
 └── tools/                            # Developer tools (sync_openapi.py, gen_endpoint_map.py, doctor.py)
 ```
 
@@ -63,7 +67,8 @@ Core components:
 - **Connection resolution order:** Resolve connections using Wi-Fi first resolution (`--host` -> registry `wifi_host` probed -> `usb_host` 10.0.4.20). Never hardcode IP addresses or tokens in application logic.
 - **Client lifecycle reuse:** Reuse a single `BusyBar` or `AsyncBusyBar` instance per device. Never instantiate clients inside tight polling loops.
 - **Mandatory dry-run and bounded polling:** All CLI applications must provide `--dry-run` to execute logic with zero device writes. Polling loops must be bounded with exponential backoff on connection errors.
-- **Leverage busylib:** Use `busylib` (version 1.0.0) as the underlying communication layer. Do not reimplement transport retries, authentication header selection, URL construction, or low-level HTTP calls.
+- **Leverage busylib:** Use `busylib` (version 2.6.1 via PyPI) for Python and `@busy-app/busy-lib` (via npm) for TypeScript apps as runtime dependencies. Use `vendor/busylib-py` and `vendor/busylib-ts` git submodules as the local source of truth for inspecting SDK implementation details, types, and capability parity. Do not reimplement transport retries, authentication header selection, URL construction, or low-level HTTP calls.
+- **Submodule sync workflow:** Keep reference SDK submodules non-recursive (`recurse = false` in `.gitmodules`). To inspect upstream updates: update submodules (`git submodule update --remote`), check OpenAPI drift (`python tools/sync_openapi.py --check`), bump package registry versions in `pyproject.toml` or `package.json`, and run unit/contract test suites.
 - **Media uploads:** `assets_upload` does not auto-convert images. Use `storage_write` or pre-convert via `busylib.converter.convert_for_storage`.
 - **Emulator support:** Target `127.0.0.1:8080` during local iteration when a physical device is unavailable.
 - **Data privacy and secret management:** Never commit production credentials, secret tokens, or personal identity data into version control. Store local secrets in git-ignored files (`config/devices.toml`, `.env`). Redact tokens, access keys, and Wi-Fi credentials from all log outputs.
@@ -104,7 +109,7 @@ Core components:
 ## Continuous improvement and context maintenance
 
 - **Correction loop trigger:** When the project owner or human reviewer corrects an operational assumption, code pattern, or architectural misunderstanding multiple times, do not simply apologize and move on. Treat repeated corrections as a missing or ambiguous instruction in AGENTS.md.
-- **Propose before modifying:** Formulate a concise, imperative operational rule explaining what must be done and why. Never modify AGENTS.md autonomously. Present the exact proposed diff to the project owner and request confirmation before applying the update.
+- **Propose before modifying:** Formulate a concise, imperative operational rule explaining what must be done and why. Never modify AGENTS.md autonomously. When requesting confirmation from the project owner, present a clean, high-level functional summary of the proposed change (focusing on purpose and behavioral impact) rather than large, raw diff blocks, and provide the exact diff only upon request.
 - **Rule drafting standards:** Draft proposed rules as durable technical constraints rather than situational incident logs. State what is prohibited or required, the technical failure mode it avoids, and any verified alternatives. Do not include dates, task IDs, or conversational narrative.
 
 ## Worktree hygiene
@@ -135,4 +140,4 @@ Core components:
 - **Hardcoded targets and credentials:** Embedding raw IP addresses, USB fallbacks, or authentication tokens in application code.
 - **Unbounded polling:** Running infinite sleep loops against device APIs without exponential backoff on failures.
 - **Preamble and conversational filler:** Opening responses with pleasantries, apologizing profusely, or restating user requests.
-- **Autonomous rule edits:** Modifying AGENTS.md without presenting a proposed diff and obtaining explicit user approval.
+- **Autonomous rule edits:** Modifying AGENTS.md without presenting a proposed change summary and obtaining explicit user approval.

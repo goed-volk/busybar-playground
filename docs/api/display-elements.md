@@ -34,10 +34,14 @@ BUSY Bar supports five distinct display element types rendered on the LED matrix
 
 ### 5. `rectangle`
 - **Purpose**: Geometric rectangle shapes and background fills.
-- **Fields**:
-  - `width`, `height`: Integer dimensions in pixels.
-  - `fill`: `none`, `solid`, `gradient_h`, `gradient_v`.
-  - `color`: `#RRGGBBAA` hex color string.
+- **Fields (OpenAPI 27.5.0 & `busylib 2.6.1`)**:
+  - `width`, `height`: Integer dimensions in pixels (`gt: 0`).
+  - `radius`: Corner border radius in pixels (`ge: 0`, default: `0`).
+  - `fill`: Fill style: `none`, `solid`, `gradient_h`, `gradient_v` (default: `none`).
+  - `fill_colors`: List of 1 to 2 `#RRGGBBAA` hex color strings (default: `["#FFFFFFFF", "#00000000"]`).
+  - `border_width`: Integer border stroke width in pixels (`ge: 0`, default: `1`).
+  - `border_color`: `#RRGGBBAA` hex color string (default: `#FFFFFFFF`).
+- **Kit Helper**: `busybar_kit.draw.build_rectangle_element` accepts `color` as an ergonomic shortcut, automatically setting `fill_colors=[color]` and `border_color=color` with `border_width=0` and `fill="solid"`.
 
 ---
 
