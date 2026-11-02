@@ -24,7 +24,7 @@ Note: Spec declares `/busybar/...` path prefix (`servers: [/]`). On-device HTTP 
 | `/busybar/ble/disable` | **POST** | `` | Disable BLE |
 | `/busybar/ble/enable` | **POST** | `` | Enable BLE |
 | `/busybar/ble/pairing` | **DELETE** | `` | Remove pairing |
-| `/busybar/ble/status` | **GET** | `` |  |
+| `/busybar/ble/status` | **GET** | `` | Get BLE status |
 | `/busybar/busy/profiles/{slot}` | **GET** | `getBusyProfile` | Get BUSY timer profile |
 | `/busybar/busy/profiles/{slot}` | **PUT** | `setBusyProfile` | Set BUSY timer profile |
 | `/busybar/busy/snapshot` | **GET** | `getBusySnapshot` | Get BUSY timer snapshot |
@@ -69,4 +69,4 @@ Note: Spec declares `/busybar/...` path prefix (`servers: [/]`). On-device HTTP 
 | `/busybar/update/install` | **POST** | `installFirmwareUpdate` | Install firmware update |
 | `/busybar/update/status` | **GET** | `getFirmwareUpdateStatus` | Get firmware update status |
 | `/busybar/version` | **GET** | `getVersion` | Get API version information |
-| `/busybar/wifi/status` | **GET** | `` |  |
+| `/busybar/wifi/status` | **GET** | `` | Get Wi-Fi connection status |
