@@ -58,6 +58,14 @@ Core components:
 - **Zero filler and no echoing:** Never open responses with filler phrases ("Great question", "Certainly", "I would be happy to help"). Never restate or paraphrase the user prompt back before answering. Cut preamble and move directly to substance.
 - **No speculation:** Never invent or extrapolate unverified data points, configurations, pricing, or system capabilities. Anchor strictly in primary verified data or state the absence of verified facts plainly.
 
+## Execution architecture decision gate
+
+Before scaffolding or writing code for any new application or integration request, evaluate and agree on the target execution architecture with the user. Never assume one architecture by default when the prompt could fit either model; challenge ambiguous requirements upfront using the clarification tool:
+
+- **Remote host-side integration (`busybar_kit` + `busylib-py` or Node host):** Choose when the solution orchestrates multiple BUSY Bar devices, integrates with local desktop state or enterprise webhooks, requires heavy compute or memory (>512 KiB), needs uninhibited HTTP API access (such as token management, raw frame capture, or BLE/Smart Home control), or runs as a scheduled daemon pushing priority alerts over Wi-Fi or USB.
+- **Native on-device JavaScript application (`busy-tools` + `@busy-app/busy-lib`):** Choose when the solution must run standalone on the BUSY Bar without a tether to a host computer, requires interactive physical control via the hardware rotary encoder and buttons (`listen("input")`), is launched from the on-device APPS menu, or packages self-contained settings (`settings.json`) and media assets (`.png`, `.anim`, `.snd`) into `/ext/user_assets/<app_id>`.
+- **Hybrid architecture:** Choose only when an on-device interactive app explicitly requires a companion host service to pre-process external feeds or manage settings via `/api/apps/settings`.
+
 ## Hardware domain and device constraints
 
 - **Pure domain core:** Text sanitization, coordinate transformations, element geometry, and priority calculations must remain pure functions. Do not introduce network calls, client instances, environment variables, or wall-clock I/O into element generation. Pass all timestamps, colors, and coordinates as explicit arguments.
@@ -75,6 +83,18 @@ Core components:
 - **Emulator support:** Target `127.0.0.1:8080` during local iteration when a physical device is unavailable.
 - **Data privacy and secret management:** Never commit production credentials, secret tokens, or personal identity data into version control. Store local secrets in git-ignored files (`config/devices.toml`, `.env`). Redact tokens, access keys, and Wi-Fi credentials from all log outputs.
 - **Confidentiality in guideline and code files:** Never reference specific client or external partner names in configuration files, agent instructions (AGENTS.md), prompt templates, or general documentation. Use generalized descriptors ("enterprise clients", "partner integrations"). Real client names belong exclusively in private, git-ignored workspaces (`apps/_clients/`).
+
+## On-device JavaScript application constraints
+
+When the chosen architecture is a native on-device JavaScript/TypeScript application (see `docs/ecosystem/js-applications.md` and `vendor/busy-tools/`):
+
+- **Firmware boundary:** Never modify BUSY Bar firmware code or build targets. On-device JS apps execute on stock firmware inside the embedded JerryScript engine (ES2016+ subset, no Node.js built-ins, no browser DOM).
+- **Toolchain and Node pinning:** Scaffold apps using `@busy-app/create-app` (`npm create @busy-app/app`) and package/deploy via `@busy-app/cli` (`busy-cli`). Use Node 24 (`>=24 <26`); Node 26 is unsupported. Reference `vendor/busy-tools` for canonical `@shared/*` helpers and `env.d.ts` globals.
+- **Entry point and handle lifecycle:** `src/main.ts` or `src/main.js` executes once top-to-bottom and must not export anything. The process remains alive only while an input listener (`listen("input")`), timer (`setTimeout`/`setInterval`), or `fetch` is active. Release all timers and listeners on exit. Never call `unbind()` synchronously inside its own input callback when it is the last handle; schedule `setTimeout(unbind, 0)` instead.
+- **Sandboxed HTTP API allowlist:** On-device apps communicate via `fetch("http://localhost/api/...")` and are restricted strictly to 18 allowed endpoints (`apps/settings` GET for own `app_id`, `display/brightness`, `display/draw`, `audio/play`, `audio/volume`, `busy`, `name`, `time`, `wifi/status`, `version`, `access`, `transport`, `status*`, and `/ext/data`-scoped `storage`). Never pass `--addr` to `busy-cli build` unless explicitly requested, as it overrides the internal `localhost` target.
+- **Memory and request conservation:** Respect the `128 KiB` default heap (`heap_size_kib` max `512 KiB` in `manifest.json`). Keep at most one `DisplayDraw` request in flight, send only changed element IDs, clear removed elements with `DisplayClear`, and avoid frequent `localStorage.setItem` calls (each call rewrites the entire store to flash).
+- **Hardware input conventions:** Use `short` (not `press`) as the default button tap action to prevent firing on key-down and double-triggering. Long-press of `back` is reserved by firmware to force-quit.
+- **Manifest and asset rules:** Manifest `id` must match the package root directory (`^[a-zA-Z0-9_-][a-zA-Z0-9_.-]{0,31}$`, max 32 chars, reverse-domain `app.<author>.<name>`). Package media exclusively in device-decodable formats (`.png`/`.image`, `.anim`, `.snd`, plus `icon_front_8x8.png` and `icon_back_11x11.png`).
 
 ## Working agreement and harness execution
 
