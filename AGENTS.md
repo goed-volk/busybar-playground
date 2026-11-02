@@ -8,10 +8,11 @@ This repository is a tool-agnostic base layer for developing applications and of
 
 Core components:
 - `src/busybar_kit/`: Shared Python library for connection resolution (Wi-Fi first), priority ladder handling, ASCII sanitization, and CLI defaults.
-- `vendor/busybar-openapi/`: Vendored, machine-readable OpenAPI specification (27.5.0) used for contract testing.
+- `vendor/busybar-openapi/`: Vendored, machine-readable OpenAPI specification (27.14.0) used for contract testing.
 - `vendor/busylib-py/`: Reference git submodule of official upstream Python SDK (busylib-py).
 - `vendor/busylib-ts/`: Reference git submodule of official upstream TypeScript SDK (busylib-ts, non-recursive).
-- `docs/`: Comprehensive knowledge base detailing device hardware, display matrices, priority ladders, and API behavior.
+- `vendor/busy-tools/`: Reference git submodule of official upstream JS/TS scaffolding and CLI packaging toolchain (`@busy-app/cli`, `@busy-app/create-app`).
+- `docs/`: Comprehensive knowledge base detailing device hardware, display matrices, priority ladders, on-device JS runtime, and API behavior.
 - `apps/`: Applications targeting BUSY Bar devices (including `buienradar-alarm`, `_template`, and git-ignored `_clients/`).
 
 ## Repository organization
@@ -44,6 +45,7 @@ Core components:
 ├── vendor/busybar-openapi/           # Pinned openapi.yaml & provenance metadata
 ├── vendor/busylib-py/                # Upstream Python SDK git submodule (reference)
 ├── vendor/busylib-ts/                # Upstream TypeScript SDK git submodule (reference)
+├── vendor/busy-tools/                # Upstream JS app CLI & template git submodule (reference)
 └── tools/                            # Developer tools (sync_openapi.py, gen_endpoint_map.py, doctor.py)
 ```
 

@@ -14,3 +14,6 @@ This index catalogues all primary sources, specifications, and repositories refe
 | BUSY Bar Emulator | `https://github.com/busy-app/busybar-emulator` | Community | Community Tool | 2026-08-06 |
 | BUSY Bar Manager | `https://github.com/busy-app/busybar-manager` | Flipper Devices Inc. | Official Manager | 2026-08-06 |
 | BUSY Cloud Web App | `https://cloud.busy.app` | Flipper Devices Inc. | Official Service | 2026-08-06 |
+| `busy-tools` CLI & Scaffolder | `https://github.com/busy-app/busy-tools` | Flipper Devices Inc. | Official Tooling | 2026-11-02 |
+| On-device JS Apps Spec | `https://github.com/busy-app/busybar-firmware/blob/dev/documentation/JavaScript%20Applications.dox.md` | Flipper Devices Inc. | Official Spec | 2026-11-02 |
+| On-device JS Apps Guidelines | `https://github.com/busy-app/busybar-firmware/blob/dev/applications_js/AGENTS.md` | Flipper Devices Inc. | Official Docs | 2026-11-02 |

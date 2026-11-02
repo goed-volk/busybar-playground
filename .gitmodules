@@ -9,3 +9,8 @@
 	branch = dev
 	recurse = false
 
+[submodule "vendor/busy-tools"]
+	path = vendor/busy-tools
+	url = https://github.com/busy-app/busy-tools.git
+	branch = main
+	recurse = false
