@@ -27,3 +27,8 @@ BUSY Bar supports three transport modes for communication:
 - **OpenAPI Specification**: Declares endpoint paths with prefix `/busybar/...` (e.g., `/busybar/display/draw`).
 - **On-Device HTTP Server**: Listens and serves the exact same operations under the `/api/...` prefix (e.g., `/api/display/draw`).
 - **`busylib` Handling**: The `busylib` Python SDK internally handles path routing and URL construction. Custom applications should rely on `busylib` methods and `busybar_kit` helpers rather than manually constructing URLs.
+
+## Specification scope: cloud proxy vs. local firmware
+
+- **Vendored OpenAPI specification (`vendor/busybar-openapi/openapi.yaml`)**: Sourced from the public cloud proxy (`https://api.busy.app/busybar/openapi.yaml`). It defines cloud-routable endpoints and maps to `docs/api/endpoint-map.md`.
+- **Device-local firmware endpoints**: Specific endpoints execute strictly on physical hardware via USB or local Wi-Fi and are not exposed through the cloud proxy. These include JavaScript application lifecycle and package management (`/api/apps/launch`, `/api/apps/quit`, `/api/apps/install`, `/api/apps/list`, `/api/apps/stage`, `/api/apps/settings`). The TypeScript SDK (`@busy-app/busy-lib`) compiles against the full firmware specification, exposing these routes via methods like `appsLaunch` and `appsQuit`.

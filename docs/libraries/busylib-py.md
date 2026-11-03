@@ -1,6 +1,6 @@
 # `busylib` (busylib-py) Integration Guide
 
-`busylib` (version `2.6.1`) is the official Python SDK for BUSY Bar provided by Flipper Devices, targeting OpenAPI specification `27.5.0`. Upstream SDK source code is mirrored for local reference under `vendor/busylib-py` (Python) and `vendor/busylib-ts` (TypeScript).
+`busylib` (version `2.6.1`) is the official Python SDK for BUSY Bar provided by Flipper Devices, targeting OpenAPI specification `27.5.0`. Upstream SDK source code is mirrored for local reference under `vendor/busylib-py` (Python) and `vendor/busylib-ts` (TypeScript; see [busylib-ts integration guide](busylib-ts.md)).
 
 ## Core API Methods
 

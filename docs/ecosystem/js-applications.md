@@ -41,7 +41,7 @@ On-device applications are scaffolded, compiled, packaged, and deployed using `b
 - **Node runtime requirement**: Building and packaging with `busy-cli` requires Node 24 (`>=24 <26`). Node 26 is unsupported.
 - **Scaffolding command**: `npm create @busy-app/app <dir> -- --author "<Name>" --id app.<author>.<name> --name "<Title>" --description "<Desc>" --api-version 27.12.0`
 - **Source structure**: `busy-cli` scans `src/` exclusively. Entry point must be `src/main.ts` or `src/main.js`. Metadata resides in `src/appmeta/manifest.json` and optional `src/appmeta/settings.json`.
-- **Shared template helpers**: Scaffolded projects provide `@shared/device` (`new BusyBar({ addr: __BUSY_ADDR__ })`), `@shared/settings` (`loadValues`, `saveValues`), and `@shared/datetime`.
+- **Shared template helpers and SDK imports**: Scaffolded projects traditionally provide `@shared/device`, `@shared/settings`, and `@shared/datetime`. In modern applications targeting `@busy-app/busy-lib >=1.0.0`, prefer using `BusyBarAppClient` with tree-shakable standalone functions (`displayDraw`, `displayClear`, `appsSettingsGet`) over instantiating the full `BusyBar` class to minimize bundle size and memory usage in JerryScript. Date and time formatting (`formatTime`, `formatMonth`, `formatWeekday`, `formatDayOfMonth`) is now built into `@busy-app/busy-lib`.
 
 ## Entry point and JerryScript lifecycle
 
@@ -54,8 +54,8 @@ On-device applications are scaffolded, compiled, packaged, and deployed using `b
 ## Resource and memory conservation
 
 - **Heap budget**: `heap_size_kib` in `manifest.json` defaults to `128` KiB (maximum `512` KiB). Raising the heap reduces memory available to the device HTTP server and firmware subsystems.
-- **Request concurrency**: Every `device.*` call executes an HTTP request against the local web server. Keep at most one `DisplayDraw` request in flight at any time; coalesce or drop intermediate frames.
-- **Delta updates by element ID**: Assign stable `id` values to display elements. Send only modified elements on state changes, and remove obsolete elements explicitly with `device.DisplayClear({ application_name: APP, element_ids: [...] })`.
+- **Request concurrency**: Every draw call executes an HTTP request against the local web server. Keep at most one `displayDraw` request in flight at any time; coalesce or drop intermediate frames.
+- **Delta updates by element ID**: Assign stable `id` values to display elements. Send only modified elements on state changes, and remove obsolete elements explicitly via `displayClear(client, { application_name: APP, element_ids: [...] })` or `device.displayClear(...)`.
 - **Flash wear awareness**: `localStorage.setItem` rewrites the entire application store to flash on every invocation. Keep stored values minimal and infrequent; use `src/appmeta/settings.json` and `@shared/settings` for user configuration.
 
 ## Hardware input events
@@ -78,6 +78,13 @@ On-device JavaScript applications can only access the following 18 endpoints rel
 - **Sandboxed storage**: `storage` (`GET`, `POST`, `DELETE`, isolated strictly to the app's `/ext/data` namespace).
 
 External HTTP(S) endpoints can also be called via `fetch` when Wi-Fi is connected. Applications must catch network errors and back off without crashing timers or input listeners.
+
+## Remote application lifecycle management
+
+Starting with HTTP API 27.14.0 (supported in `@busy-app/busy-lib >=1.0.0`), host-side integrations can control on-device applications over the local network:
+
+- **Launch application**: `POST /api/apps/launch?app_id=<id>` (`appsLaunch`) starts an installed JS application. Returns `409` if a higher-priority application is already active.
+- **Quit running application**: `POST /api/apps/quit` (`appsQuit`) terminates the currently active JS application. Returns `409` if no application is active.
 
 ## Manifest, settings, and asset formats
 

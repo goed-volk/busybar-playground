@@ -2,7 +2,7 @@
 
 *THIS FILE IS GENERATED AUTOMATICALLY BY `tools/gen_endpoint_map.py`.*
 
-Note: Spec declares `/busybar/...` path prefix (`servers: [/]`). On-device HTTP server serves the same paths under `/api/...`.
+Note: Spec declares `/busybar/...` path prefix (`servers: [/]`). On-device HTTP server serves the same paths under `/api/...`. Device-local routes (e.g. `/api/apps/launch`, `/api/apps/quit`) execute exclusively on device hardware and are omitted from this cloud proxy snapshot.
 
 | Spec Path | Method | Operation ID | Summary |
 |---|---|---|---|
