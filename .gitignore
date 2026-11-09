@@ -20,8 +20,10 @@ venv/
 build/
 dist/
 
-# Client work
-apps/_clients/*
+# Applications (ignore local apps and client work; keep starter template)
+apps/*
+!apps/_template/
+!apps/_clients/
 !apps/_clients/.gitkeep
 
 # LLM / Agent state & local overrides

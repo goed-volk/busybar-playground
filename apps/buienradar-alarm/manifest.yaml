@@ -1,9 +1,0 @@
-name: Buienradar Rain Alarm
-slug: buienradar-alarm
-version: 1.0.0
-author: Marketing Engineers & Jan van Unnik
-description: Takes the BUSY Bar screen when rain is coming with a 2-hour intensity timeline.
-tags:
-  - weather
-  - rain
-  - notifications
