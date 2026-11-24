@@ -7,13 +7,13 @@ Operating manual, core values, and technical constraints for autonomous agents a
 This repository is a tool-agnostic base layer for developing applications and office integrations for BUSY Bar devices. Maintainers: [Jan van Unnik](https://jan.marketing) & [Marketing Engineers](https://marketingengineers.nl).
 
 Core components:
-- `src/busybar_kit/`: Shared Python library for connection resolution (Wi-Fi first), priority ladder handling, ASCII sanitization, and CLI defaults.
+- `src/busybar_kit/`: Shared Python library for connection resolution (Wi-Fi first), priority ladder handling, ASCII sanitization, and CLI defaults. Installable in other projects as a git dependency pinned to a release tag.
 - `vendor/busybar-openapi/`: Vendored, machine-readable OpenAPI specification (27.15.0) used for contract testing.
 - `vendor/busylib-py/`: Reference git submodule of official upstream Python SDK (busylib-py).
 - `vendor/busylib-ts/`: Reference git submodule of official upstream TypeScript SDK (busylib-ts, non-recursive).
 - `vendor/busy-tools/`: Reference git submodule of official upstream JS/TS scaffolding and CLI packaging toolchain (`@busy-app/cli`, `@busy-app/create-app`).
 - `docs/`: Comprehensive knowledge base detailing device hardware, display matrices, priority ladders, on-device JS runtime, and API behavior.
-- `apps/`: Applications targeting BUSY Bar devices (starter template `_template/`, git-ignored local apps, and git-ignored `_clients/`).
+- `apps/`: Local testing area for BUSY Bar applications (starter template `_template/`, git-ignored local apps, and git-ignored `_clients/`). Apps that are kept, shared, or distributed live in their own repositories.
 
 ## Repository organization
 
@@ -65,6 +65,11 @@ Before scaffolding or writing code for any new application or integration reques
 - **Native on-device JavaScript application (`busy-tools` + `@busy-app/busy-lib`):** Choose when the solution must run standalone on the BUSY Bar without a tether to a host computer, requires interactive physical control via the hardware rotary encoder and buttons (`listen("input")`), is launched from the on-device APPS menu, or packages self-contained settings (`settings.json`) and media assets (`.png`, `.anim`, `.snd`) into `/ext/user_assets/<app_id>`.
 - **Hybrid architecture:** Choose only when an on-device interactive app explicitly requires a companion host service to pre-process external feeds or manage settings via `/api/apps/settings`.
 
+Repository placement applies to every architecture:
+
+- **Local testing in this repository:** Use `apps/` here for experiments and local testing only; its contents stay git-ignored apart from `_template/`.
+- **Own repository for real apps:** Any app that will be kept, shared, or distributed gets its own repository. Python apps install `busybar_kit` as a git dependency pinned to a release tag (see `README.md`) and import it as needed. Never copy kit modules into an app; copies drift and miss fixes.
+
 ## Hardware domain and device constraints
 
 - **Pure domain core:** Text sanitization, coordinate transformations, element geometry, and priority calculations must remain pure functions. Do not introduce network calls, client instances, environment variables, or wall-clock I/O into element generation. Pass all timestamps, colors, and coordinates as explicit arguments.
@@ -74,13 +79,15 @@ Before scaffolding or writing code for any new application or integration reques
 - **Element builder helpers:** Build elements via `busybar_kit.draw` helper functions. Never hand-roll raw display dictionaries or custom element classes.
 - **Priority ladder compliance:** Respect standard priority bands (20-39 Ambient, 40-59 Informational default 50, 60-79 Notable events, 90 Active focus, 91-100 Urgent alerts). Always catch and handle HTTP 409 conflict responses gracefully with backoff via `busybar_kit.draw.draw_display_elements`.
 - **Connection resolution order:** Resolve connections using Wi-Fi first resolution (`--host` -> registry `wifi_host` probed -> `usb_host` 10.0.4.20). Never hardcode IP addresses or tokens in application logic.
+- **Probe validation and proxy bypass:** Count a host as a reachable BUSY Bar only when `GET /api/version` returns the API's JSON shapes (`api_semver` on 200, an `error` object on 401 or 403). A proxy, gateway, or captive portal answering with a plain 403 or an HTML page is not a device. Probes and device clients must ignore `HTTP_PROXY` and `HTTPS_PROXY`, because devices are always on the local network or the USB link. Use `busybar_kit.resolve.is_device_reachable` and `busybar_kit.client`, which already do both.
 - **Client lifecycle reuse:** Reuse a single `BusyBar` or `AsyncBusyBar` instance per device. Never instantiate clients inside tight polling loops.
-- **Mandatory dry-run and bounded polling:** All CLI applications must provide `--dry-run` to execute logic with zero device writes. Polling loops must be bounded with exponential backoff on connection errors.
+- **Mandatory dry-run and bounded polling:** All CLI applications must provide `--dry-run` to execute logic with zero device writes. Polling loops must be bounded with exponential backoff on connection errors. Every wait inside a long-running loop (frame intervals, 409 backoff, error backoff) must be capped and interruptible: wait on a `threading.Event` (or `asyncio.Event`) instead of calling `time.sleep`, so switching content, clearing, and shutdown take effect immediately.
 - **Leverage busylib:** Use `busylib` (version 2.6.1 via PyPI) for Python and `@busy-app/busy-lib` (via npm) for TypeScript apps as runtime dependencies (see `docs/libraries/busylib-py.md` and `docs/libraries/busylib-ts.md`). Use `vendor/busylib-py` and `vendor/busylib-ts` git submodules as the local source of truth for inspecting SDK implementation details, types, and capability parity. Do not reimplement transport retries, authentication header selection, URL construction, or low-level HTTP calls.
 - **Submodule sync workflow:** Keep reference SDK submodules non-recursive (`recurse = false` in `.gitmodules`). To inspect upstream updates: update submodules (`git submodule update --remote`), check OpenAPI drift (`python tools/sync_openapi.py --check`), bump package registry versions in `pyproject.toml` or `package.json`, and run unit/contract test suites.
 - **Media uploads:** `assets_upload` does not auto-convert images. Use `storage_write` or pre-convert via `busylib.converter.convert_for_storage`.
 - **Emulator support:** Target `127.0.0.1:8080` during local iteration when a physical device is unavailable.
-- **Data privacy and secret management:** Never commit production credentials, secret tokens, or personal identity data into version control. Store local secrets in git-ignored files (`config/devices.toml`, `.env`). Redact tokens, access keys, and Wi-Fi credentials from all log outputs.
+- **Data privacy and secret management:** Never commit production credentials, secret tokens, or personal identity data into version control. Store local secrets in git-ignored files (`config/devices.toml`, `.env`) or in the user's XDG config directory (`~/.config/<app_name>/`). Redact tokens, access keys, and Wi-Fi credentials from all log outputs.
+- **Configuration lookup:** Load device configuration through `busybar_kit.config.load_config()`, which searches the `config_dir` argument, then `BUSYBAR_CONFIG_DIR`, then the repository `config/` directory (source checkout only), then `$XDG_CONFIG_HOME/<app_name>/`. Never assume repository-relative config paths in app code, because they break once the kit is installed as a library.
 - **Confidentiality in guideline and code files:** Never reference specific client or external partner names in configuration files, agent instructions (AGENTS.md), prompt templates, or general documentation. Use generalized descriptors ("enterprise clients", "partner integrations"). Real client names belong exclusively in private, git-ignored workspaces (`apps/_clients/`).
 
 ## On-device JavaScript application constraints
@@ -137,7 +144,7 @@ When the chosen architecture is a native on-device JavaScript/TypeScript applica
 ## Worktree hygiene
 
 - **Independent environments:** Treat each git worktree as an isolated workspace with its own local dependencies, build artifacts, and test databases.
-- **No global stashes:** Do not use git stash to move uncommitted work between worktrees.
+- **No stashes:** Never use `git stash`, neither to move work between worktrees nor to inspect older versions, because stashed work is easily lost without notice. Commit work in progress on a branch, and inspect older file versions with `git show <rev>:<path>`.
 - **Branch promotion:** Transfer changes across worktrees strictly through explicit branch merges or pull requests.
 - **Workspace pruning:** Remove inactive worktrees immediately after merging branches to reclaim disk resources.
 
