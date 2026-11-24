@@ -38,7 +38,10 @@ To prevent apps from clashing and ensure predictable behavior across office devi
 
 ---
 
+## Verified on hardware
+
+- **Merge by Element ID**: Requests with the same `application_name` update only the elements whose `id`s they contain; elements drawn earlier and not included in the request stay visible. Observed on a physical BUSY Bar with a host-driven animation that sent its text elements once and afterwards only the changed rectangle elements: the text stayed on screen while the rectangles animated.
+
 ## Community-Claimed / Unverified Behavior
 
 - **Deferred Execution**: Community reports suggest conflicting requests lower than priority 90 may be briefly deferred (~1.5s) before rejection.
-- **Merge by Element ID**: Requests with the same `application_name` and matching element `id`s update existing elements rather than redrawing the whole screen canvas.
