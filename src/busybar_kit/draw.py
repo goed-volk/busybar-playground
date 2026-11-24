@@ -180,6 +180,24 @@ def build_rectangle_element(
     )
 
 
+def apply_display_until(elements: list[Any], display_until: int | float) -> list[Any]:
+    """Copies of ``elements`` with ``display_until`` set where no timing is set yet."""
+    if isinstance(display_until, bool) or display_until <= 0:
+        raise ValueError(f"display_until must be a positive Unix timestamp, got {display_until!r}")
+    stamp = str(int(display_until))
+    result: list[Any] = []
+    for element in elements:
+        if isinstance(element, dict):
+            has_timing = element.get("timeout") is not None or element.get("display_until")
+            result.append(element if has_timing else {**element, "display_until": stamp})
+        else:
+            has_timing = element.timeout is not None or element.display_until is not None
+            result.append(
+                element if has_timing else element.model_copy(update={"display_until": stamp})
+            )
+    return result
+
+
 def draw_display_elements(
     client: BusyBar | None,
     elements: list[Any],
@@ -197,11 +215,19 @@ def draw_display_elements(
 ) -> bool:
     """Draw ``elements``; retry HTTP 409 conflicts with capped, jittered backoff.
 
+    ``timeout`` is the HTTP request timeout in seconds. ``display_until`` is a Unix
+    timestamp (seconds) after which the device hides the elements; it is set on every
+    element that has neither its own ``timeout`` nor ``display_until`` (the API treats
+    the two as mutually exclusive). The caller's element objects are not modified.
+
     Returns True when drawn (or dry-run), False when the frame was skipped after
     ``max_409_retries`` conflicts or when ``cancel`` was set. Backoff waits on ``cancel``,
     so a caller shutting down interrupts it immediately. Other API errors are re-raised.
     """
     validate_app_name_and_id(application_name, field_name="application_name")
+
+    if display_until is not None:
+        elements = apply_display_until(elements, display_until)
 
     if dry_run:
         logger.info(
@@ -232,8 +258,6 @@ def draw_display_elements(
             request_kwargs: dict[str, Any] = {}
             if timeout is not None:
                 request_kwargs["timeout"] = timeout
-            if display_until is not None:
-                request_kwargs["display_until"] = display_until
 
             client.display_draw(display_elements_model, **request_kwargs)
 
