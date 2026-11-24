@@ -40,8 +40,9 @@ def get_busybar_client(
         "backoff": backoff,
         "compatibility_mode": compatibility_mode,
     }
-    if transport is not None:
-        kwargs["transport"] = transport
+    # An explicit transport keeps httpx2 from routing LAN/USB device traffic through
+    # HTTP(S)_PROXY from the environment.
+    kwargs["transport"] = transport if transport is not None else httpx2.HTTPTransport()
     if timeout is not None:
         kwargs["timeout"] = timeout
 
@@ -97,8 +98,7 @@ def get_async_busybar_client(
         "backoff": backoff,
         "compatibility_mode": compatibility_mode,
     }
-    if transport is not None:
-        kwargs["transport"] = transport
+    kwargs["transport"] = transport if transport is not None else httpx2.AsyncHTTPTransport()
     if timeout is not None:
         kwargs["timeout"] = timeout
 
