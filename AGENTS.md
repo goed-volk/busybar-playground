@@ -13,7 +13,7 @@ Core components:
 - `vendor/busylib-ts/`: Reference git submodule of official upstream TypeScript SDK (busylib-ts, non-recursive).
 - `vendor/busy-tools/`: Reference git submodule of official upstream JS/TS scaffolding and CLI packaging toolchain (`@busy-app/cli`, `@busy-app/create-app`).
 - `docs/`: Comprehensive knowledge base detailing device hardware, display matrices, priority ladders, on-device JS runtime, and API behavior.
-- `apps/`: Applications targeting BUSY Bar devices (including `buienradar-alarm`, `_template`, and git-ignored `_clients/`).
+- `apps/`: Applications targeting BUSY Bar devices (starter template `_template/`, git-ignored local apps, and git-ignored `_clients/`).
 
 ## Repository organization
 
@@ -39,7 +39,6 @@ Core components:
 │   └── kit/                          # Unit tests for busybar_kit functionality
 ├── apps/
 │   ├── _template/                    # Starter template for new BUSY Bar apps
-│   ├── buienradar-alarm/             # Rain intensity timeline alarm app
 │   └── _clients/                     # Client project work (git-ignored)
 ├── docs/                             # Knowledge base & API documentation
 ├── vendor/busybar-openapi/           # Pinned openapi.yaml & provenance metadata

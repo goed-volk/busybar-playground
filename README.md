@@ -14,7 +14,7 @@ This repository bundles the official upstream SDKs, developer tooling, hardware 
 - `src/busybar_kit`: Shared Python multi-device layer providing Wi-Fi-first connection resolution, priority ladder handling, ASCII sanitization, and standardized CLI flags.
 - `vendor/busybar-openapi`: Vendored OpenAPI 3.1.0 specification for schema contract testing and offline reference.
 - `docs/`: Comprehensive technical documentation covering display matrices, hardware constraints, JerryScript runtime limits, priority ladders, and API endpoints.
-- `apps/`: Reference implementations (`buienradar-alarm`) and application starter templates (`_template`).
+- `apps/`: Application starter template (`_template/`) and local git-ignored application workspace (`apps/*`).
 
 ## Agent harness and LLM workflows
 
@@ -86,10 +86,10 @@ Execute the offline unit and contract test suite:
 pytest
 ```
 
-Run a sample app in offline test mode with zero device writes:
+Run the starter app template in offline dry-run mode with zero device writes:
 
 ```bash
-python apps/buienradar-alarm/app.py --test --dry-run
+python apps/_template/app.py --once --dry-run
 ```
 
 To scaffold a new on-device application with `@busy-app/create-app`:
