@@ -33,6 +33,12 @@ Run the verification suite before every commit:
 - **Unit and contract tests:** `.venv/bin/pytest` must pass. Any modification to `src/busybar_kit/` requires corresponding unit and OpenAPI contract test updates in `tests/`.
 - **On-device JS app verification:** When working on an on-device JS/TS application in `apps/`, verify that `npm run typecheck` and `npm run build` succeed, `src/main.ts` has no exports, `src/appmeta/manifest.json` matches the directory ID and minimum `api_version`, and only the 18 sandboxed HTTP API endpoints are used.
 
+## Releasing busybar-kit
+
+- **Version source:** The package version is derived from git tags by `setuptools-scm`. Do not hard-code versions in `pyproject.toml` or `src/busybar_kit/__init__.py`. Untagged commits build as `X.Y.Z.devN+g<hash>`.
+- **Cutting a release:** On a passing `main`, tag and push with `git tag vX.Y.Z && git push origin vX.Y.Z`. The `Release` workflow runs lint and tests, builds the sdist and wheel, verifies the wheel version matches the tag, and publishes a GitHub Release with both files attached.
+- **Consuming a release:** Downstream projects pin a tag, e.g. `busybar-kit @ git+https://github.com/goed-volk/busybar-playground.git@vX.Y.Z`.
+
 ## Data privacy and secret management
 
 - **Zero secrets in version control:** Never commit `config/devices.toml`, `.env`, production credentials, API tokens, or LAN access keys. Redact tokens and Wi-Fi credentials from all log outputs.
