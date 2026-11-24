@@ -30,9 +30,11 @@ To prevent apps from clashing and ensure predictable behavior across office devi
 
 `busybar_kit.draw.draw_display_elements` automatically intercepts HTTP 409 responses:
 1. Logs the conflict as a warning.
-2. Applies jittered exponential backoff (starting at `0.5s`).
+2. Applies jittered exponential backoff (starting at `0.5s`, each wait capped at `max_backoff`, default `4.0s`).
 3. Retries up to `max_409_retries` (default: 3).
 4. If the conflict persists, gracefully skips the update cycle without throwing an unhandled exception or entering a tight busy-loop.
+5. Waits on an optional `cancel` `threading.Event`, so a shutting-down caller interrupts the backoff immediately (the call then returns `False`).
+6. Only responses with HTTP status 409 count as conflicts; any other API error is re-raised.
 
 ---
 

@@ -1,6 +1,6 @@
 import logging
 import re
-import time
+import threading
 from random import uniform
 from typing import Any, Literal
 
@@ -29,6 +29,9 @@ PRIORITY_NOTABLE_MAX = 79
 PRIORITY_SESSION = 90
 PRIORITY_URGENT_MIN = 91
 PRIORITY_URGENT_MAX = 100
+
+# Upper bound for a single 409 backoff wait (before jitter), in seconds.
+MAX_409_BACKOFF = 4.0
 
 APP_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
 _element_id_counter = 0
@@ -189,7 +192,15 @@ def draw_display_elements(
     dry_run: bool = False,
     max_409_retries: int = 3,
     initial_backoff: float = 0.5,
+    max_backoff: float = MAX_409_BACKOFF,
+    cancel: threading.Event | None = None,
 ) -> bool:
+    """Draw ``elements``; retry HTTP 409 conflicts with capped, jittered backoff.
+
+    Returns True when drawn (or dry-run), False when the frame was skipped after
+    ``max_409_retries`` conflicts or when ``cancel`` was set. Backoff waits on ``cancel``,
+    so a caller shutting down interrupts it immediately. Other API errors are re-raised.
+    """
     validate_app_name_and_id(application_name, field_name="application_name")
 
     if dry_run:
@@ -204,8 +215,12 @@ def draw_display_elements(
     if client is None:
         raise ValueError("client cannot be None unless dry_run=True")
 
+    waiter = cancel if cancel is not None else threading.Event()
     backoff = initial_backoff
     for attempt in range(max_409_retries + 1):
+        if waiter.is_set():
+            logger.debug("Draw for app '%s' cancelled", application_name)
+            return False
         try:
             display_elements_model = DisplayElements(
                 application_name=application_name,
@@ -230,7 +245,7 @@ def draw_display_elements(
             )
             return True
         except BusyBarAPIError as e:
-            if getattr(e, "status_code", None) == 409 or "409" in str(e):
+            if e.status_code == 409:
                 logger.warning(
                     "Priority conflict (409) drawing for app '%s' "
                     "at priority %d (attempt %d/%d): %s",
@@ -241,8 +256,10 @@ def draw_display_elements(
                     e,
                 )
                 if attempt < max_409_retries:
-                    sleep_time = backoff + uniform(0.05, 0.25)
-                    time.sleep(sleep_time)
+                    sleep_time = min(backoff, max_backoff) + uniform(0.05, 0.25)
+                    if waiter.wait(sleep_time):
+                        logger.debug("409 backoff for app '%s' cancelled", application_name)
+                        return False
                     backoff *= 2
                     continue
                 else:
