@@ -8,7 +8,7 @@ This repository is a tool-agnostic base layer for developing applications and of
 
 Core components:
 - `src/busybar_kit/`: Shared Python library for connection resolution (Wi-Fi first), priority ladder handling, ASCII sanitization, and CLI defaults.
-- `vendor/busybar-openapi/`: Vendored, machine-readable OpenAPI specification (27.14.0) used for contract testing.
+- `vendor/busybar-openapi/`: Vendored, machine-readable OpenAPI specification (27.15.0) used for contract testing.
 - `vendor/busylib-py/`: Reference git submodule of official upstream Python SDK (busylib-py).
 - `vendor/busylib-ts/`: Reference git submodule of official upstream TypeScript SDK (busylib-ts, non-recursive).
 - `vendor/busy-tools/`: Reference git submodule of official upstream JS/TS scaffolding and CLI packaging toolchain (`@busy-app/cli`, `@busy-app/create-app`).
