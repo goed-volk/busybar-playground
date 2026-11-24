@@ -12,7 +12,7 @@ from busybar_kit.text import sanitize_text
 def test_text_sanitizer():
     assert sanitize_text("Hello World") == "Hello World"
     assert sanitize_text("Regen & Buien (ë é €)") == "Regen & Buien (e e EUR)"
-    assert sanitize_text("Test Emoji 🌧️") == "Test Emoji "
+    assert sanitize_text("Test Emoji 🌧️") == "Test Emoji"
 
     with pytest.raises(ValueError):
         sanitize_text("🌧️")
