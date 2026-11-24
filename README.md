@@ -31,8 +31,8 @@ This playground is structured specifically for autonomous development by harness
 Clone the repository and initialize the bundled reference SDK submodules:
 
 ```bash
-git clone https://github.com/marketingengineers/jvu-busybar.git
-cd jvu-busybar
+git clone https://github.com/goed-volk/busybar-playground.git
+cd busybar-playground
 git submodule update --init
 ```
 
