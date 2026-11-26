@@ -24,7 +24,7 @@ token_env = "{token_env}"
 
 @pytest.fixture(autouse=True)
 def isolated_env(monkeypatch, tmp_path):
-    """load_dotenv writes into os.environ; restore it fully after each test."""
+    """Tests set variables directly in os.environ; restore it fully after each test."""
     saved = dict(os.environ)
     for key in ("BUSYBAR_TOKEN", "BUSYBAR_DEVICE", "BUSYBAR_CONFIG_DIR", "LIB_TOKEN", "REPO_TOKEN"):
         os.environ.pop(key, None)
