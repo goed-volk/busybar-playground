@@ -3,53 +3,64 @@
 Copy this template directory to apps/<your-app-slug>/ to start a new application.
 """
 
-import time
+import logging
+import signal
+import threading
 
 from busybar_kit.cli import create_base_parser, setup_logging
-from busybar_kit.client import get_busybar_client
-from busybar_kit.draw import build_text_element, draw_display_elements
+from busybar_kit.client import DeviceError, DeviceSession
+from busybar_kit.config import load_app_config
+from busybar_kit.draw import PRIORITY_INFO_DEFAULT, DrawResult, build_text_element
+from busybar_kit.resolve import resolve_device
 
 APP_NAME = "my-app-template"
+MAX_ERROR_BACKOFF = 300.0
+
+logger = logging.getLogger(APP_NAME)
 
 
-def parse_args():
-    parser = create_base_parser(description="BUSY Bar App Template")
-    return parser.parse_args()
+def main() -> None:
+    args = create_base_parser(description="BUSY Bar App Template").parse_args()
+    redaction = setup_logging(args.verbose)
 
+    app = load_app_config()
+    device = app.device(args.device)
+    token = app.token_for(device)
+    redaction.add(token)
+    resolution = resolve_device(device, token, explicit_host=args.host)
+    logger.info("Device '%s' at %s (%s)", device.name, resolution.host, resolution.source)
 
-def main():
-    args = parse_args()
-    setup_logging(args.verbose)
+    stop = threading.Event()
+    signal.signal(signal.SIGTERM, lambda *_: stop.set())
 
-    client = None if args.dry_run else get_busybar_client(explicit_host=args.host)
+    elements = [build_text_element("Hello BUSY Bar!", id="txt1", x=36, y=4, align="center")]
 
-    elements = [
-        build_text_element("Hello BUSY Bar!", id="txt1", x=36, y=4, font="normal", align="center")
-    ]
+    with DeviceSession(
+        resolution, application_name=APP_NAME, dry_run=args.dry_run, cancel=stop
+    ) as session:
+        error_backoff = float(args.interval)
+        try:
+            while not stop.is_set():
+                wait = float(args.interval)
+                try:
+                    result = session.draw(elements, priority=PRIORITY_INFO_DEFAULT)
+                    logger.info("Frame: %s", result.value)
+                    error_backoff = float(args.interval)
+                    if result is DrawResult.CANCELLED:
+                        break
+                except DeviceError as e:
+                    logger.warning("Draw failed: %s", e)
+                    wait = error_backoff
+                    error_backoff = min(error_backoff * 2, MAX_ERROR_BACKOFF)
 
-    try:
-        while True:
-            draw_display_elements(
-                client=client,
-                elements=elements,
-                application_name=APP_NAME,
-                priority=50,
-                dry_run=args.dry_run,
-            )
-            print("Rendered frame")
-
-            if args.once:
-                break
-
-            time.sleep(args.interval)
-
-    except KeyboardInterrupt:
-        print("\nStopping...")
-        if not args.dry_run and client:
-            try:
-                client.display_clear(application_name=APP_NAME)
-            except Exception:
-                pass
+                if args.once:
+                    break
+                stop.wait(wait)
+        except KeyboardInterrupt:
+            stop.set()
+        finally:
+            if not args.once:
+                session.clear()
 
 
 if __name__ == "__main__":
