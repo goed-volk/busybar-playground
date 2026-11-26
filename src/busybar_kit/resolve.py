@@ -1,13 +1,84 @@
+"""Wi-Fi-first device connection resolution.
+
+:func:`resolve_device` is pure apart from the probe: no module state, no caching. It
+returns a :class:`Resolution` that says which address was chosen, why, and whether the
+device answered. :func:`resolve_device_connection` is the cached v0.2 wrapper.
+"""
+
+from __future__ import annotations
+
 import logging
-from typing import NamedTuple
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Literal, NamedTuple
+from urllib.parse import urlsplit
 
 import httpx2
 
-from busybar_kit.config import DeviceConfig, load_config
+from busybar_kit.config import DEFAULT_USB_HOST, DeviceConfig, load_config
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_USB_HOST = "10.0.4.20"
+__all__ = [
+    "DEFAULT_USB_HOST",
+    "REACHABLE_STATUS",
+    "Resolution",
+    "ResolvedConnection",
+    "candidate_hosts",
+    "clear_resolution_cache",
+    "is_device_reachable",
+    "looks_like_busybar",
+    "normalize_addr",
+    "resolve_device",
+    "resolve_device_connection",
+]
+
+ResolutionSource = Literal["explicit", "wifi", "usb", "fallback"]
+
+# 401/403 still prove a BUSY Bar is answering (token missing, or Wi-Fi API disabled).
+REACHABLE_STATUS = frozenset({200, 401, 403})
+
+
+def normalize_addr(host: str) -> str:
+    """``http://`` + host without trailing slash. Raises ``ValueError`` on empty input."""
+    if not isinstance(host, str):
+        raise ValueError(f"host must be a string, got {type(host).__name__}")
+    value = host.strip()
+    scheme = "http"
+    if value.lower().startswith(("http://", "https://")):
+        scheme, value = value.split("://", 1)
+    value = value.rstrip("/")
+    if not value:
+        raise ValueError("host is empty")
+    return f"{scheme.lower()}://{value}"
+
+
+def _safe_host(addr: str) -> str:
+    """Host and port only, so URL userinfo never reaches a log line."""
+    try:
+        parts = urlsplit(addr)
+        host = parts.hostname or "?"
+        return f"{host}:{parts.port}" if parts.port else host
+    except ValueError:
+        return "?"
+
+
+@dataclass(frozen=True)
+class Resolution:
+    """Outcome of resolving one device.
+
+    ``reachable`` is True when the probe succeeded, False for the unprobed-or-failed
+    fallback, and None for an explicit host (never probed).
+    """
+
+    addr: str
+    source: ResolutionSource
+    reachable: bool | None
+    token: str | None = field(default=None, repr=False)
+
+    @property
+    def host(self) -> str:
+        return self.addr.split("://", 1)[-1].rstrip("/")
 
 
 class ResolvedConnection(NamedTuple):
@@ -15,11 +86,23 @@ class ResolvedConnection(NamedTuple):
     token: str | None
 
 
-_resolved_cache: dict[str, ResolvedConnection] = {}
-
-
-# 401/403 still prove a BUSY Bar is answering (token missing, or Wi-Fi API disabled).
-REACHABLE_STATUS = frozenset({200, 401, 403})
+def candidate_hosts(device: DeviceConfig) -> list[tuple[Literal["wifi", "usb"], str]]:
+    """``(source, addr)`` pairs in ``device.prefer`` order, deduplicated by normalized address."""
+    order: tuple[Literal["wifi", "usb"], ...] = (
+        ("usb", "wifi") if device.prefer == "usb" else ("wifi", "usb")
+    )
+    seen: set[str] = set()
+    result: list[tuple[Literal["wifi", "usb"], str]] = []
+    for source in order:
+        host = device.usb_host if source == "usb" else device.wifi_host
+        if not host or not host.strip():
+            continue
+        addr = normalize_addr(host)
+        if addr.lower() in seen:
+            continue
+        seen.add(addr.lower())
+        result.append((source, addr))
+    return result
 
 
 def looks_like_busybar(response: httpx2.Response) -> bool:
@@ -47,16 +130,65 @@ def is_device_reachable(
     """True when ``addr`` answers ``GET /api/version`` like a BUSY Bar. Never raises.
 
     Environment proxies are ignored: a device is always on the LAN or USB link, and a
-    proxy or gateway answering in its place must not count as reachable.
+    proxy or gateway answering in its place must not count as reachable. Failures are
+    logged at DEBUG with the exception type only.
     """
-    formatted_addr = addr if addr.startswith(("http://", "https://")) else f"http://{addr}"
-    url = f"{formatted_addr.rstrip('/')}/api/version"
     try:
+        url = f"{normalize_addr(addr)}/api/version"
         with httpx2.Client(timeout=timeout, transport=transport, trust_env=False) as http:
             response = http.get(url)
-    except Exception:
+    except Exception as exc:
+        logger.debug("Probe of %s failed: %s", _safe_host(str(addr)), type(exc).__name__)
         return False
-    return looks_like_busybar(response)
+    ok = looks_like_busybar(response)
+    if not ok:
+        logger.debug(
+            "Probe of %s: HTTP %d is not a BUSY Bar response",
+            _safe_host(url),
+            response.status_code,
+        )
+    return ok
+
+
+def resolve_device(
+    device: DeviceConfig,
+    token: str | None = None,
+    *,
+    explicit_host: str | None = None,
+    probe_fn: Callable[[str], bool] | None = None,
+    timeout: float = 1.0,
+    transport: httpx2.BaseTransport | None = None,
+) -> Resolution:
+    """Pick the address for ``device``. No caching; every call probes again.
+
+    ``explicit_host`` is used as-is without probing. Otherwise :func:`candidate_hosts`
+    are probed in order and the first reachable one wins. When none answers, the
+    device's ``usb_host`` (or ``10.0.4.20``) is returned with ``reachable=False``.
+    ``token`` defaults to ``device.token``.
+    """
+    if token is None:
+        token = device.token
+    if explicit_host:
+        return Resolution(normalize_addr(explicit_host), "explicit", None, token)
+
+    if probe_fn is None:
+
+        def probe_fn(addr: str) -> bool:
+            if transport is None:
+                return is_device_reachable(addr, timeout=timeout)
+            return is_device_reachable(addr, timeout=timeout, transport=transport)
+
+    for source, addr in candidate_hosts(device):
+        if probe_fn(addr):
+            logger.debug("Resolved device '%s' via %s to %s", device.name, source, addr)
+            return Resolution(addr, source, True, token)
+
+    fallback = normalize_addr(device.usb_host or DEFAULT_USB_HOST)
+    logger.debug("No candidate answered for device '%s'; falling back to %s", device.name, fallback)
+    return Resolution(fallback, "fallback", False, token)
+
+
+_resolved_cache: dict[str, ResolvedConnection] = {}
 
 
 def resolve_device_connection(
@@ -64,6 +196,7 @@ def resolve_device_connection(
     explicit_host: str | None = None,
     use_cache: bool = True,
 ) -> ResolvedConnection:
+    """v0.2 wrapper over :func:`resolve_device` with a process-wide cache."""
     if config is None:
         config = load_config()
 
@@ -71,42 +204,11 @@ def resolve_device_connection(
     if use_cache and cache_key in _resolved_cache:
         return _resolved_cache[cache_key]
 
-    if explicit_host:
-        target_addr = (
-            explicit_host
-            if explicit_host.startswith(("http://", "https://"))
-            else f"http://{explicit_host}"
-        )
-        res = ResolvedConnection(addr=target_addr, token=config.token)
-        if use_cache:
-            _resolved_cache[cache_key] = res
-        return res
-
-    candidates = []
-    if config.prefer == "wifi" and config.wifi_host:
-        candidates.append(config.wifi_host)
-    if config.usb_host:
-        candidates.append(config.usb_host)
-    if config.prefer == "usb" and config.wifi_host and config.wifi_host not in candidates:
-        candidates.append(config.wifi_host)
-
-    for cand in candidates:
-        formatted_cand = cand if cand.startswith(("http://", "https://")) else f"http://{cand}"
-        if is_device_reachable(formatted_cand):
-            logger.info(
-                "Resolved device '%s' to reachable candidate '%s'", config.name, formatted_cand
-            )
-            res = ResolvedConnection(addr=formatted_cand, token=config.token)
-            if use_cache:
-                _resolved_cache[cache_key] = res
-            return res
-
-    fallback_addr = f"http://{DEFAULT_USB_HOST}"
-    logger.info("Fallback to default USB host '%s' for device '%s'", fallback_addr, config.name)
-    res = ResolvedConnection(addr=fallback_addr, token=config.token)
+    resolution = resolve_device(config, explicit_host=explicit_host)
+    result = ResolvedConnection(addr=resolution.addr, token=resolution.token)
     if use_cache:
-        _resolved_cache[cache_key] = res
-    return res
+        _resolved_cache[cache_key] = result
+    return result
 
 
 def clear_resolution_cache() -> None:
