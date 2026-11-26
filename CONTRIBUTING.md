@@ -17,7 +17,7 @@ This repository combines a shared Python host library (`src/busybar_kit/`) with 
 - **Python host environment:** Create and use the local virtual environment (`.venv`). Install dependencies via `pip install -e ".[dev]"`. Never install packages globally on the host system.
 - **Node 24 toolchain for on-device apps:** On-device JavaScript/TypeScript applications built with `@busy-app/cli` (`busy-cli`) and `@busy-app/create-app` require Node 24 (`>=24 <26`). Node 26 is unsupported.
 - **Reference submodules:** Keep `vendor/busylib-py`, `vendor/busylib-ts`, and `vendor/busy-tools` non-recursive (`recurse = false` in `.gitmodules`). Use them as local read-only sources of truth for SDK types, capability parity, `@shared/*` runtime helpers, and bundler behavior.
-- **Upstream sync workflow:** To pull upstream SDK or OpenAPI updates, run `git submodule update --remote`, check specification drift with `.venv/bin/python tools/sync_openapi.py --check` (or `--update` followed by `.venv/bin/python tools/gen_endpoint_map.py`), update `vendor/busybar-openapi/PROVENANCE.md`, and run the verification suite.
+- **Upstream sync workflow:** To pull upstream SDK or OpenAPI updates, pin each reference submodule to the latest stable release tag of its upstream (`git -C vendor/<name> fetch --tags`, then `git -C vendor/<name> checkout <tag>`; for `busy-tools`, which has no tags, the commit matching the latest npm releases) instead of running `git submodule update --remote`, check specification drift with `.venv/bin/python tools/sync_openapi.py --check` (or `--update` followed by `.venv/bin/python tools/gen_endpoint_map.py`), update `vendor/busybar-openapi/PROVENANCE.md`, and run the verification suite.
 
 ## Git workflow and incremental commits
 
