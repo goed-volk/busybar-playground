@@ -100,6 +100,33 @@ npm create @busy-app/app
 
 See `docs/ecosystem/js-applications.md` and `vendor/busy-tools/` for on-device app packaging and deployment instructions.
 
+## Using busybar_kit from another project
+
+The kit can be installed as a library in a separate project, pinned to a release tag:
+
+```bash
+pip install "busybar-kit @ git+https://github.com/goed-volk/busybar-playground.git@v0.2.0"
+```
+
+Or in that project's `pyproject.toml`:
+
+```toml
+dependencies = [
+  "busybar-kit @ git+https://github.com/goed-volk/busybar-playground.git@v0.2.0",
+]
+```
+
+To work on the kit and the other project at the same time, install the checkout in that project's virtual environment with `pip install -e ../busybar-playground`.
+
+`load_config()` looks for `devices.toml` in this order:
+
+1. The `config_dir` argument, if given.
+2. The `BUSYBAR_CONFIG_DIR` environment variable, if set.
+3. `config/` in this repository, only when the kit runs from a source checkout.
+4. `$XDG_CONFIG_HOME/busybar/` (default `~/.config/busybar/`). Pass `app_name` to use another directory, for example `load_config(app_name="my-app")` for `~/.config/my-app/`.
+
+A real `devices.toml` always wins over `devices.example.toml`. Without either, a single USB device at `10.0.4.20` is assumed. `.env` is read from next to the chosen `devices.toml`, from the repository root (checkout only), and from the XDG directory. Values in `.env` never override variables already set in the environment.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).

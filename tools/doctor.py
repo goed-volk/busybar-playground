@@ -26,6 +26,7 @@ def main():
     try:
         config = load_config()
         print(f"Loaded Device Config: '{config.name}' (Label: '{config.label}')")
+        print(f"  - Config File: {config.source or 'None (USB default)'}")
         print(f"  - Wi-Fi Host: {config.wifi_host or 'None'}")
         print(f"  - USB Host:   {config.usb_host or 'None'}")
         print(f"  - Preferred:  {config.prefer}")

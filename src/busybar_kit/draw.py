@@ -1,6 +1,6 @@
 import logging
 import re
-import time
+import threading
 from random import uniform
 from typing import Any, Literal
 
@@ -29,6 +29,9 @@ PRIORITY_NOTABLE_MAX = 79
 PRIORITY_SESSION = 90
 PRIORITY_URGENT_MIN = 91
 PRIORITY_URGENT_MAX = 100
+
+# Upper bound for a single 409 backoff wait (before jitter), in seconds.
+MAX_409_BACKOFF = 4.0
 
 APP_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
 _element_id_counter = 0
@@ -177,6 +180,24 @@ def build_rectangle_element(
     )
 
 
+def apply_display_until(elements: list[Any], display_until: int | float) -> list[Any]:
+    """Copies of ``elements`` with ``display_until`` set where no timing is set yet."""
+    if isinstance(display_until, bool) or display_until <= 0:
+        raise ValueError(f"display_until must be a positive Unix timestamp, got {display_until!r}")
+    stamp = str(int(display_until))
+    result: list[Any] = []
+    for element in elements:
+        if isinstance(element, dict):
+            has_timing = element.get("timeout") is not None or element.get("display_until")
+            result.append(element if has_timing else {**element, "display_until": stamp})
+        else:
+            has_timing = element.timeout is not None or element.display_until is not None
+            result.append(
+                element if has_timing else element.model_copy(update={"display_until": stamp})
+            )
+    return result
+
+
 def draw_display_elements(
     client: BusyBar | None,
     elements: list[Any],
@@ -189,8 +210,24 @@ def draw_display_elements(
     dry_run: bool = False,
     max_409_retries: int = 3,
     initial_backoff: float = 0.5,
+    max_backoff: float = MAX_409_BACKOFF,
+    cancel: threading.Event | None = None,
 ) -> bool:
+    """Draw ``elements``; retry HTTP 409 conflicts with capped, jittered backoff.
+
+    ``timeout`` is the HTTP request timeout in seconds. ``display_until`` is a Unix
+    timestamp (seconds) after which the device hides the elements; it is set on every
+    element that has neither its own ``timeout`` nor ``display_until`` (the API treats
+    the two as mutually exclusive). The caller's element objects are not modified.
+
+    Returns True when drawn (or dry-run), False when the frame was skipped after
+    ``max_409_retries`` conflicts or when ``cancel`` was set. Backoff waits on ``cancel``,
+    so a caller shutting down interrupts it immediately. Other API errors are re-raised.
+    """
     validate_app_name_and_id(application_name, field_name="application_name")
+
+    if display_until is not None:
+        elements = apply_display_until(elements, display_until)
 
     if dry_run:
         logger.info(
@@ -204,8 +241,12 @@ def draw_display_elements(
     if client is None:
         raise ValueError("client cannot be None unless dry_run=True")
 
+    waiter = cancel if cancel is not None else threading.Event()
     backoff = initial_backoff
     for attempt in range(max_409_retries + 1):
+        if waiter.is_set():
+            logger.debug("Draw for app '%s' cancelled", application_name)
+            return False
         try:
             display_elements_model = DisplayElements(
                 application_name=application_name,
@@ -217,8 +258,6 @@ def draw_display_elements(
             request_kwargs: dict[str, Any] = {}
             if timeout is not None:
                 request_kwargs["timeout"] = timeout
-            if display_until is not None:
-                request_kwargs["display_until"] = display_until
 
             client.display_draw(display_elements_model, **request_kwargs)
 
@@ -230,7 +269,7 @@ def draw_display_elements(
             )
             return True
         except BusyBarAPIError as e:
-            if getattr(e, "status_code", None) == 409 or "409" in str(e):
+            if e.status_code == 409:
                 logger.warning(
                     "Priority conflict (409) drawing for app '%s' "
                     "at priority %d (attempt %d/%d): %s",
@@ -241,8 +280,10 @@ def draw_display_elements(
                     e,
                 )
                 if attempt < max_409_retries:
-                    sleep_time = backoff + uniform(0.05, 0.25)
-                    time.sleep(sleep_time)
+                    sleep_time = min(backoff, max_backoff) + uniform(0.05, 0.25)
+                    if waiter.wait(sleep_time):
+                        logger.debug("409 backoff for app '%s' cancelled", application_name)
+                        return False
                     backoff *= 2
                     continue
                 else:

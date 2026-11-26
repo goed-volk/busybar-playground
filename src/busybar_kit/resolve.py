@@ -18,14 +18,45 @@ class ResolvedConnection(NamedTuple):
 _resolved_cache: dict[str, ResolvedConnection] = {}
 
 
-def is_device_reachable(addr: str, timeout: float = 1.5) -> bool:
+# 401/403 still prove a BUSY Bar is answering (token missing, or Wi-Fi API disabled).
+REACHABLE_STATUS = frozenset({200, 401, 403})
+
+
+def looks_like_busybar(response: httpx2.Response) -> bool:
+    """Match the API response shapes, so captive portals and gateway 403 pages are rejected.
+
+    200 must carry ``VersionInfo`` (``api_semver``); 401/403 must carry the JSON ``Error``
+    object (``error``).
+    """
+    if response.status_code not in REACHABLE_STATUS:
+        return False
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+    if not isinstance(body, dict):
+        return False
+    return ("api_semver" if response.status_code == 200 else "error") in body
+
+
+def is_device_reachable(
+    addr: str,
+    timeout: float = 1.5,
+    transport: httpx2.BaseTransport | None = None,
+) -> bool:
+    """True when ``addr`` answers ``GET /api/version`` like a BUSY Bar. Never raises.
+
+    Environment proxies are ignored: a device is always on the LAN or USB link, and a
+    proxy or gateway answering in its place must not count as reachable.
+    """
     formatted_addr = addr if addr.startswith(("http://", "https://")) else f"http://{addr}"
     url = f"{formatted_addr.rstrip('/')}/api/version"
     try:
-        resp = httpx2.get(url, timeout=timeout)
-        return resp.status_code in (200, 401, 403)
+        with httpx2.Client(timeout=timeout, transport=transport, trust_env=False) as http:
+            response = http.get(url)
     except Exception:
         return False
+    return looks_like_busybar(response)
 
 
 def resolve_device_connection(
