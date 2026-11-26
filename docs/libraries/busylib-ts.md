@@ -1,6 +1,6 @@
 # `@busy-app/busy-lib` (busylib-ts) integration guide
 
-`@busy-app/busy-lib` (version `1.0.0-rc.1`) is the official TypeScript SDK for BUSY Bar provided by Flipper Devices, targeting HTTP API specification `27.14.0` (`API_SEMVER`). Upstream source code is mirrored for local reference under `vendor/busylib-ts/`.
+`@busy-app/busy-lib` (version `1.0.1`) is the official TypeScript SDK for BUSY Bar provided by Flipper Devices, targeting HTTP API specification `27.14.0` (`API_SEMVER`). Upstream source code is mirrored for local reference under `vendor/busylib-ts/`.
 
 ## Architecture overview
 
