@@ -1,6 +1,13 @@
 import pytest
 
-from busybar_kit.text import PRINTABLE_ASCII_RE, is_printable_ascii, sanitize_text
+from busybar_kit.draw import validate_app_name_and_id
+from busybar_kit.text import (
+    PRINTABLE_ASCII_RE,
+    is_printable_ascii,
+    sanitize_optional,
+    sanitize_text,
+    validate_identifier,
+)
 
 
 @pytest.mark.parametrize(
@@ -41,3 +48,35 @@ def test_is_printable_ascii():
     assert is_printable_ascii("ABC xyz ~")
     assert not is_printable_ascii("")
     assert not is_printable_ascii("é")
+
+
+@pytest.mark.parametrize("raw", [None, "", "   ", "☕🚀"])
+def test_sanitize_optional_returns_none_for_absent_content(raw):
+    assert sanitize_optional(raw) is None
+
+
+def test_sanitize_optional_sanitizes_and_truncates():
+    assert sanitize_optional("Café crème", max_length=4) == "Cafe"
+
+
+@pytest.mark.parametrize("raw", [None, "x"])
+def test_sanitize_optional_rejects_bad_max_length(raw):
+    with pytest.raises(ValueError):
+        sanitize_optional(raw, max_length=0)
+
+
+@pytest.mark.parametrize("good", ["app", "my-app_1.2", "A.b-C_d"])
+def test_validate_identifier_accepts(good):
+    assert validate_identifier(good) == good
+
+
+@pytest.mark.parametrize("bad", ["", "has space", "ü", "abc\n", "a/b", None, 42, b"app", ["a"]])
+def test_validate_identifier_rejects_with_value_error(bad):
+    with pytest.raises(ValueError):
+        validate_identifier(bad, "id")
+
+
+@pytest.mark.parametrize("bad", [None, 42])
+def test_validate_app_name_and_id_non_string_is_value_error(bad):
+    with pytest.raises(ValueError):
+        validate_app_name_and_id(bad)

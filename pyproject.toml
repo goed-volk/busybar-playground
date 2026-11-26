@@ -30,6 +30,9 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+busybar_kit = ["py.typed"]
+
 # Version is derived from git tags (vX.Y.Z). Untagged commits get a .devN suffix.
 [tool.setuptools_scm]
 fallback_version = "0.0.0"

@@ -17,6 +17,9 @@ import unicodedata
 
 PRINTABLE_ASCII_RE = re.compile(r"^[\x20-\x7E]+$")
 
+# Application names and element IDs accepted by the firmware.
+IDENTIFIER_RE = re.compile(r"[a-zA-Z0-9._-]+")
+
 TRANSLITERATION_MAP: dict[str, str] = {
     "ß": "ss",
     "ẞ": "SS",
@@ -172,3 +175,31 @@ def sanitize_text(text: str, *, max_length: int | None = None) -> str:
 
 def is_printable_ascii(text: str) -> bool:
     return bool(text) and PRINTABLE_ASCII_RE.match(text) is not None
+
+
+def sanitize_optional(text: str | None, *, max_length: int | None = None) -> str | None:
+    """Like :func:`sanitize_text`, but ``None`` instead of raising for absent content.
+
+    Returns ``None`` for ``None``, empty input, or input with nothing printable left (for
+    example an emoji-only feed title). An invalid ``max_length`` still raises
+    ``ValueError``, since that is a caller bug rather than missing content.
+    """
+    if max_length is not None and max_length < 1:
+        raise ValueError("max_length must be >= 1")
+    if text is None:
+        return None
+    try:
+        return sanitize_text(text, max_length=max_length)
+    except ValueError:
+        return None
+
+
+def validate_identifier(value: object, field_name: str = "identifier") -> str:
+    """Return ``value`` when it is a valid application name or element ID.
+
+    Raises ``ValueError`` (never ``TypeError``) for non-strings, empty strings, and
+    anything outside ``^[a-zA-Z0-9._-]+$``. A trailing newline is rejected too.
+    """
+    if not isinstance(value, str) or not IDENTIFIER_RE.fullmatch(value):
+        raise ValueError(f"Invalid {field_name} {value!r}. Must match pattern ^[a-zA-Z0-9._-]+$")
+    return value

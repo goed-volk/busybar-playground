@@ -1,5 +1,4 @@
 import logging
-import re
 import threading
 from random import uniform
 from typing import Any, Literal
@@ -15,7 +14,7 @@ from busylib.types import (
     TextElement,
 )
 
-from busybar_kit.text import sanitize_text
+from busybar_kit.text import IDENTIFIER_RE, sanitize_text, validate_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -33,16 +32,13 @@ PRIORITY_URGENT_MAX = 100
 # Upper bound for a single 409 backoff wait (before jitter), in seconds.
 MAX_409_BACKOFF = 4.0
 
-APP_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
+APP_NAME_PATTERN = IDENTIFIER_RE  # kept for v0.2 callers; use busybar_kit.text
 _element_id_counter = 0
 
 
 def validate_app_name_and_id(name_or_id: str, field_name: str = "application_name") -> str:
-    if not name_or_id or not APP_NAME_PATTERN.match(name_or_id):
-        raise ValueError(
-            f"Invalid {field_name} '{name_or_id}'. Must match pattern ^[a-zA-Z0-9._-]+$"
-        )
-    return name_or_id
+    """Alias of :func:`busybar_kit.text.validate_identifier`."""
+    return validate_identifier(name_or_id, field_name)
 
 
 def _next_element_id(prefix: str = "el") -> str:
