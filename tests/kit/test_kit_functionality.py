@@ -34,7 +34,7 @@ def test_resolve_explicit_host(tmp_registry):
 
 def test_dry_run_zero_writes(caplog):
     elem = build_text_element("Dry run text")
-    with caplog.at_level(logging.INFO):
+    with caplog.at_level(logging.DEBUG, logger="busybar_kit"):
         res = draw_display_elements(
             client=None,
             elements=[elem],
@@ -43,6 +43,7 @@ def test_dry_run_zero_writes(caplog):
         )
     assert res is True
     assert "[DRY-RUN]" in caplog.text
+    assert all(r.levelno < logging.INFO for r in caplog.records)
 
 
 def test_build_rectangle_element_defaults():

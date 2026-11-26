@@ -1,5 +1,6 @@
 import logging
 import threading
+from enum import Enum
 from random import uniform
 from typing import Any, Literal
 
@@ -34,6 +35,25 @@ MAX_409_BACKOFF = 4.0
 
 APP_NAME_PATTERN = IDENTIFIER_RE  # kept for v0.2 callers; use busybar_kit.text
 _element_id_counter = 0
+
+
+class DrawResult(str, Enum):
+    """Outcome of one draw call.
+
+    ``CONFLICT_SKIPPED`` means a higher-priority app held the display through every 409
+    retry: the frame was not shown and the caller should resend a full frame later.
+    ``CANCELLED`` means the caller's ``cancel`` event was set: stop, do not retry.
+    """
+
+    DRAWN = "drawn"
+    DRY_RUN = "dry_run"
+    CONFLICT_SKIPPED = "conflict_skipped"
+    CANCELLED = "cancelled"
+
+    @property
+    def ok(self) -> bool:
+        """True for ``DRAWN`` and ``DRY_RUN``, matching the v0.2 ``bool`` return."""
+        return self in (DrawResult.DRAWN, DrawResult.DRY_RUN)
 
 
 def validate_app_name_and_id(name_or_id: str, field_name: str = "application_name") -> str:
@@ -194,6 +214,108 @@ def apply_display_until(elements: list[Any], display_until: int | float) -> list
     return result
 
 
+def draw_display_elements_result(
+    client: BusyBar | None,
+    elements: list[Any],
+    *,
+    application_name: str,
+    priority: int = PRIORITY_INFO_DEFAULT,
+    timeout: int | float | None = None,
+    display_until: int | float | None = None,
+    led_notification_color: str | None = None,
+    dry_run: bool = False,
+    max_409_retries: int = 3,
+    initial_backoff: float = 0.5,
+    max_backoff: float = MAX_409_BACKOFF,
+    cancel: threading.Event | None = None,
+) -> DrawResult:
+    """Draw ``elements``; retry HTTP 409 conflicts with capped, jittered backoff.
+
+    ``timeout`` is the HTTP request timeout in seconds. ``display_until`` is a Unix
+    timestamp (seconds) after which the device hides the elements; it is set on every
+    element that has neither its own ``timeout`` nor ``display_until`` (the API treats
+    the two as mutually exclusive). The caller's element objects are not modified.
+
+    The payload is validated as ``DisplayElements`` before anything else, so a dry run
+    raises for the same invalid input a live draw would (``ValueError`` or pydantic
+    ``ValidationError``). Dry runs log at DEBUG only, so animation loops do not flood.
+
+    Backoff waits on ``cancel``, so a caller shutting down interrupts it immediately.
+    Each 409 is logged at DEBUG; a skipped cycle is logged once at INFO. Errors other
+    than 409 are re-raised.
+    """
+    validate_app_name_and_id(application_name, field_name="application_name")
+
+    if display_until is not None:
+        elements = apply_display_until(elements, display_until)
+
+    payload = DisplayElements(
+        application_name=application_name,
+        priority=priority,
+        elements=elements,
+        led_notification_color=led_notification_color,
+    )
+
+    if dry_run:
+        logger.debug(
+            "[DRY-RUN] Would draw %d element(s) for app '%s' at priority %d",
+            len(payload.elements),
+            application_name,
+            priority,
+        )
+        return DrawResult.DRY_RUN
+
+    if client is None:
+        raise ValueError("client cannot be None unless dry_run=True")
+
+    request_kwargs: dict[str, Any] = {}
+    if timeout is not None:
+        request_kwargs["timeout"] = timeout
+
+    waiter = cancel if cancel is not None else threading.Event()
+    backoff = initial_backoff
+    attempts = max_409_retries + 1
+    for attempt in range(1, attempts + 1):
+        if waiter.is_set():
+            logger.debug("Draw for app '%s' cancelled", application_name)
+            return DrawResult.CANCELLED
+        try:
+            client.display_draw(payload, **request_kwargs)
+        except BusyBarAPIError as e:
+            if e.status_code != 409:
+                raise
+            logger.debug(
+                "Priority conflict (409) for app '%s' at priority %d (attempt %d/%d)",
+                application_name,
+                priority,
+                attempt,
+                attempts,
+            )
+            if attempt == attempts:
+                break
+            if waiter.wait(min(backoff, max_backoff) + uniform(0.05, 0.25)):
+                logger.debug("409 backoff for app '%s' cancelled", application_name)
+                return DrawResult.CANCELLED
+            backoff *= 2
+            continue
+        logger.debug(
+            "Drew %d element(s) for app '%s' at priority %d",
+            len(payload.elements),
+            application_name,
+            priority,
+        )
+        return DrawResult.DRAWN
+
+    logger.info(
+        "Skipped draw for app '%s' at priority %d: display held by a higher priority "
+        "after %d attempt(s)",
+        application_name,
+        priority,
+        attempts,
+    )
+    return DrawResult.CONFLICT_SKIPPED
+
+
 def draw_display_elements(
     client: BusyBar | None,
     elements: list[Any],
@@ -209,86 +331,22 @@ def draw_display_elements(
     max_backoff: float = MAX_409_BACKOFF,
     cancel: threading.Event | None = None,
 ) -> bool:
-    """Draw ``elements``; retry HTTP 409 conflicts with capped, jittered backoff.
+    """v0.2 interface of :func:`draw_display_elements_result`.
 
-    ``timeout`` is the HTTP request timeout in seconds. ``display_until`` is a Unix
-    timestamp (seconds) after which the device hides the elements; it is set on every
-    element that has neither its own ``timeout`` nor ``display_until`` (the API treats
-    the two as mutually exclusive). The caller's element objects are not modified.
-
-    Returns True when drawn (or dry-run), False when the frame was skipped after
-    ``max_409_retries`` conflicts or when ``cancel`` was set. Backoff waits on ``cancel``,
-    so a caller shutting down interrupts it immediately. Other API errors are re-raised.
+    True when drawn or dry-run; False when skipped after 409 conflicts or cancelled.
+    Use :func:`draw_display_elements_result` to tell those two apart.
     """
-    validate_app_name_and_id(application_name, field_name="application_name")
-
-    if display_until is not None:
-        elements = apply_display_until(elements, display_until)
-
-    if dry_run:
-        logger.info(
-            "[DRY-RUN] Would draw %d element(s) for app '%s' at priority %d",
-            len(elements),
-            application_name,
-            priority,
-        )
-        return True
-
-    if client is None:
-        raise ValueError("client cannot be None unless dry_run=True")
-
-    waiter = cancel if cancel is not None else threading.Event()
-    backoff = initial_backoff
-    for attempt in range(max_409_retries + 1):
-        if waiter.is_set():
-            logger.debug("Draw for app '%s' cancelled", application_name)
-            return False
-        try:
-            display_elements_model = DisplayElements(
-                application_name=application_name,
-                priority=priority,
-                elements=elements,
-                led_notification_color=led_notification_color,
-            )
-
-            request_kwargs: dict[str, Any] = {}
-            if timeout is not None:
-                request_kwargs["timeout"] = timeout
-
-            client.display_draw(display_elements_model, **request_kwargs)
-
-            logger.debug(
-                "Successfully drew %d element(s) for app '%s' at priority %d",
-                len(elements),
-                application_name,
-                priority,
-            )
-            return True
-        except BusyBarAPIError as e:
-            if e.status_code == 409:
-                logger.warning(
-                    "Priority conflict (409) drawing for app '%s' "
-                    "at priority %d (attempt %d/%d): %s",
-                    application_name,
-                    priority,
-                    attempt + 1,
-                    max_409_retries + 1,
-                    e,
-                )
-                if attempt < max_409_retries:
-                    sleep_time = min(backoff, max_backoff) + uniform(0.05, 0.25)
-                    if waiter.wait(sleep_time):
-                        logger.debug("409 backoff for app '%s' cancelled", application_name)
-                        return False
-                    backoff *= 2
-                    continue
-                else:
-                    logger.warning(
-                        "Skipping draw cycle for app '%s' after max 409 conflict retries.",
-                        application_name,
-                    )
-                    return False
-            else:
-                raise
-
-    return False
+    return draw_display_elements_result(
+        client,
+        elements,
+        application_name=application_name,
+        priority=priority,
+        timeout=timeout,
+        display_until=display_until,
+        led_notification_color=led_notification_color,
+        dry_run=dry_run,
+        max_409_retries=max_409_retries,
+        initial_backoff=initial_backoff,
+        max_backoff=max_backoff,
+        cancel=cancel,
+    ).ok
